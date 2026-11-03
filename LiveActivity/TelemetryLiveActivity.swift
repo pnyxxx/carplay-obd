@@ -136,11 +136,13 @@ struct SmallTelemetryView: View {
                 }
                 PowerBar(power: state.powerCh, peak: state.peakPowerCh, maxPower: attributes.maxPowerCh ?? 220, height: 6)
                 HStack(spacing: 8) {
-                    // Huile en priorité (si la voiture la fournit), sinon eau : toujours étiquetée.
+                    // Huile si la voiture la fournit un jour (goutte), sinon eau (thermomètre), comme avant.
                     if let oil = state.oilC {
-                        Text("Huile \(Format.temp(oil))").foregroundStyle(GaugePalette.oil(oil))
+                        Label(Format.temp(oil), systemImage: "drop.fill")
+                            .foregroundStyle(GaugePalette.oil(oil))
                     } else {
-                        Text("Eau \(Format.temp(state.coolantC))").foregroundStyle(GaugePalette.coolant(state.coolantC))
+                        Label(Format.temp(state.coolantC), systemImage: "thermometer.medium")
+                            .foregroundStyle(GaugePalette.coolant(state.coolantC))
                     }
                     if let peak = state.peakBoostBar {
                         PeakBadge(value: peak)
