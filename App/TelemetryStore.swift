@@ -220,6 +220,7 @@ final class TelemetryStore {
         source = nil
         connection = .idle
         UIApplication.shared.isIdleTimerDisabled = false
+        exitBlackScreen()
         keepAlive.stop()
         gpsSpeedKmh = nil
         if !keepLiveActivity {
@@ -318,6 +319,8 @@ final class TelemetryStore {
 
     private func enterStandby(_ reason: String) {
         connection = .standby(reason)
+        // Voiture arrêtée : fin de l'écran noir, l'iPhone se verrouille normalement.
+        exitBlackScreen()
         log(.info, "Veille : \(reason)")
         keepAlive.stop()
         UIApplication.shared.isIdleTimerDisabled = false
@@ -553,6 +556,53 @@ final class TelemetryStore {
         case let error as TransportError: return error.description
         case let error as BLELink.LinkError: return error.description
         default: return error.localizedDescription
+        }
+    }
+
+    // MARK: - Écran noir
+
+    /// Écran éteint, iOS ne redessine la Live Activity CarPlay que toutes les 5 à 15 s.
+    /// On garde donc l'écran de l'iPhone allumé, en noir et à luminosité minimale (OLED : quasi aucune consommation).
+    private(set) var blackScreenActive = false
+    @ObservationIgnored private var savedBrightness: CGFloat?
+    @ObservationIgnored private var lastInteraction = Date()
+
+    private var currentScreen: UIScreen? {
+        UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first?.screen
+    }
+
+    func noteInteraction() {
+        lastInteraction = Date()
+    }
+
+    func enterBlackScreen() {
+        guard !blackScreenActive else { return }
+        if let screen = currentScreen {
+            savedBrightness = screen.brightness
+            screen.brightness = 0
+        }
+        blackScreenActive = true
+        // Sans ça, iOS verrouillerait l'iPhone au bout de quelques secondes et éteindrait l'écran.
+        UIApplication.shared.isIdleTimerDisabled = true
+        log(.info, "Écran noir activé (CarPlay en temps réel)")
+    }
+
+    func exitBlackScreen() {
+        guard blackScreenActive else { return }
+        if let screen = currentScreen, let savedBrightness {
+            screen.brightness = savedBrightness
+        }
+        savedBrightness = nil
+        blackScreenActive = false
+        lastInteraction = Date()
+        UIApplication.shared.isIdleTimerDisabled = isRunning && !isStandby
+    }
+
+    /// Appelé chaque seconde par l'écran principal : passe en écran noir après un moment sans toucher l'iPhone.
+    func checkIdleForBlackScreen(sheetOpen: Bool) {
+        guard settings.autoBlackScreen, !blackScreenActive, !sheetOpen, isConnected else { return }
+        if Date().timeIntervalSince(lastInteraction) >= settings.blackScreenDelay {
+            enterBlackScreen()
         }
     }
 

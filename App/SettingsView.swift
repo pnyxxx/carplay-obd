@@ -83,6 +83,20 @@ struct SettingsView: View {
                 }
 
                 Section {
+                    Toggle("Écran noir automatique", isOn: $store.settings.autoBlackScreen)
+                    Picker("Après", selection: $store.settings.blackScreenDelay) {
+                        Text("10 s").tag(10.0)
+                        Text("15 s").tag(15.0)
+                        Text("30 s").tag(30.0)
+                        Text("1 min").tag(60.0)
+                    }
+                } header: {
+                    Text("Écran de l'iPhone")
+                } footer: {
+                    Text("Quand l'écran de l'iPhone est éteint, iOS ne met à jour les jauges CarPlay que toutes les 5 à 15 s. Laisse TrackData ouverte sur l'iPhone : après ce délai sans toucher, l'écran passe en noir à luminosité minimale (presque aucune consommation), il reste allumé et CarPlay reste en temps réel. Touche l'écran pour revenir.")
+                }
+
+                Section {
                     Toggle("Rester actif grâce au GPS", isOn: $store.settings.keepAliveWithGPS)
                 } header: {
                     Text("Arrière-plan")
