@@ -76,6 +76,10 @@ private struct ArtworkView: View {
                         Text("bar turbo")
                             .font(.system(size: 26, weight: .semibold))
                             .foregroundStyle(Color.white.opacity(0.6))
+                        if let peak = snapshot.peakBoostBar {
+                            PeakBadge(value: peak, font: .system(size: 30, weight: .heavy))
+                                .padding(.top, 8)
+                        }
                     }
                     .offset(y: 96)
                 }

@@ -25,7 +25,7 @@ final class BLELink: NSObject, ELMTransport, @unchecked Sendable {
         var description: String {
             switch self {
             case .bluetoothOff: return "Bluetooth désactivé"
-            case .unauthorized: return "Accès Bluetooth refusé (Réglages > TrackGauge)"
+            case .unauthorized: return "Accès Bluetooth refusé (Réglages > TrackData)"
             case .notFound: return "Adaptateur OBD introuvable (contact mis ? adaptateur branché ?)"
             case .noSerialService: return "Cet appareil n'expose pas de port série ELM327"
             case .connectionFailed(let reason): return "Connexion impossible : \(reason)"

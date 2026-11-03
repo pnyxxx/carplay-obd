@@ -133,7 +133,7 @@ struct SmallTelemetryView: View {
                     Label(Format.temp(state.coolantC), systemImage: "thermometer.medium")
                         .foregroundStyle(GaugePalette.coolant(state.coolantC))
                     if let peak = state.peakBoostBar {
-                        Text("max \(Format.boost(peak))").foregroundStyle(.secondary)
+                        PeakBadge(value: peak)
                     }
                 }
                 .font(.caption.monospacedDigit().weight(.semibold))
@@ -191,8 +191,7 @@ struct LockScreenTelemetryView: View {
                         .foregroundStyle(Color.white.opacity(0.8))
                     Spacer()
                     if let peak = state.peakBoostBar {
-                        Text("max \(Format.boost(peak)) bar")
-                            .foregroundStyle(Color.white.opacity(0.7))
+                        PeakBadge(value: peak, font: .subheadline.weight(.heavy))
                     }
                 }
                 .font(.subheadline.monospacedDigit().weight(.semibold))

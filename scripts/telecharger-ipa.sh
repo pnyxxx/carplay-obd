@@ -4,6 +4,6 @@ set -e
 REPO="${REPO:-pnyxxx/carplay-obd}"
 DEST="${1:-$HOME/Téléchargements}"
 mkdir -p "$DEST"
-curl -fL --progress-bar -o "$DEST/TrackGauge-unsigned.ipa" \
-  "https://github.com/$REPO/releases/download/latest/TrackGauge-unsigned.ipa"
-echo "IPA téléchargée : $DEST/TrackGauge-unsigned.ipa"
+curl -fL --progress-bar -o "$DEST/TrackData-unsigned.ipa" \
+  "https://github.com/$REPO/releases/download/latest/TrackData-unsigned.ipa"
+echo "IPA téléchargée : $DEST/TrackData-unsigned.ipa"

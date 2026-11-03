@@ -122,6 +122,22 @@ struct ArcGauge: View {
     private func clamp(_ x: Double) -> Double { min(max(x, 0), 1) }
 }
 
+/// Pastille du max de turbo maintenu (quelques secondes après le pic).
+struct PeakBadge: View {
+    let value: Double
+    var font: Font = .caption.weight(.heavy)
+
+    var body: some View {
+        Text("MAX \(Format.boost(value))")
+            .font(font.monospacedDigit())
+            .lineLimit(1)
+            .padding(.horizontal, 7)
+            .padding(.vertical, 2)
+            .background(Color.orange, in: Capsule())
+            .foregroundStyle(.black)
+    }
+}
+
 /// Barre de régime façon shift-light.
 struct RPMBar: View {
     var rpm: Double?

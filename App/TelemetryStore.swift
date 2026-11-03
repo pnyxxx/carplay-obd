@@ -56,13 +56,23 @@ final class TelemetryStore {
     private(set) var speedKmh: Double?
     private(set) var gpsSpeedKmh: Double?
     private(set) var batteryV: Double?
+    /// Pic de la session (remis à zéro à la main).
     private(set) var peakBoostBar: Double?
+    /// Max maintenu : le plus haut turbo des dernières secondes (voir `peakHoldSeconds`).
+    private(set) var heldPeakBar: Double?
+    @ObservationIgnored private var heldPeakTime: TimeInterval = 0
     private(set) var boostHistory: [BoostSample] = []
 
     /// Pression de turbo relative (bar) = pression absolue − pression atmosphérique.
     var boostBar: Double? {
         guard let intakeKPa else { return nil }
         return (intakeKPa - effectiveBaroKPa) / 100
+    }
+
+    /// Max maintenu à afficher : seulement s'il y a eu un vrai pic, nettement au-dessus de la valeur actuelle.
+    var displayedPeakBar: Double? {
+        guard let held = heldPeakBar, let boost = boostBar, held >= 0.2, held - boost >= 0.08 else { return nil }
+        return held
     }
 
     var boostTargetBar: Double? {
@@ -400,6 +410,13 @@ final class TelemetryStore {
         if boostChanged, let boost = boostBar {
             peakBoostBar = max(peakBoostBar ?? boost, boost)
             let now = ProcessInfo.processInfo.systemUptime
+            // Maintien du max : on garde le pic tant qu'il n'est pas dépassé, pendant `peakHoldSeconds`.
+            if let held = heldPeakBar, boost < held, now - heldPeakTime < settings.peakHoldSeconds {
+                // pic toujours maintenu
+            } else {
+                heldPeakBar = boost
+                heldPeakTime = now
+            }
             boostHistory.append(BoostSample(time: now, bar: boost))
             if let first = boostHistory.first, now - first.time > 20 {
                 boostHistory.removeAll { now - $0.time > 20 }
@@ -413,7 +430,7 @@ final class TelemetryStore {
     var gaugeSnapshot: GaugeSnapshot {
         GaugeSnapshot(
             boostBar: boostBar,
-            peakBoostBar: peakBoostBar,
+            peakBoostBar: displayedPeakBar,
             targetBar: boostTargetBar,
             rpm: rpm,
             coolantC: coolantC,
@@ -451,7 +468,7 @@ final class TelemetryStore {
     func startLiveActivity() {
         liveActivityError = nil
         guard liveActivity.areActivitiesEnabled else {
-            liveActivityError = "Live Activities désactivées dans Réglages > TrackGauge"
+            liveActivityError = "Live Activities désactivées dans Réglages > TrackData"
             return
         }
         let attributes = TelemetryAttributes(
@@ -492,7 +509,7 @@ final class TelemetryStore {
         }
         return TelemetryAttributes.ContentState(
             boostBar: boostBar,
-            peakBoostBar: nil,
+            peakBoostBar: displayedPeakBar,
             rpm: rpm,
             coolantC: coolantC,
             intakeAirC: intakeAirC,
@@ -550,7 +567,7 @@ final class TelemetryStore {
     private func resetValues() {
         rpm = nil; intakeKPa = nil; boostTargetKPa = nil; baroKPa = nil
         coolantC = nil; intakeAirC = nil; oilC = nil; speedKmh = nil; batteryV = nil
-        peakBoostBar = nil; boostHistory = []; estimatedBaroKPa = nil
+        peakBoostBar = nil; heldPeakBar = nil; boostHistory = []; estimatedBaroKPa = nil
         adapterInfo = nil; stats = PollStats()
     }
 }

@@ -7,6 +7,8 @@ struct AppSettings: Codable, Equatable {
     var boostMaxBar: Double = 2.0
     var rpmMax: Double = 5000
     var redlineRPM: Double = 4500
+    /// Durée d'affichage du max de turbo après le pic (s).
+    var peakHoldSeconds: Double = 5
 
     // CarPlay / Live Activity
     var autoStartLiveActivity = true

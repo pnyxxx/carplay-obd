@@ -10,7 +10,6 @@ final class LiveActivityController {
     private(set) var activity: Activity<TelemetryAttributes>?
     private var lastSent = Date.distantPast
     private var latest: TelemetryAttributes.ContentState?
-    private var peakSinceLastSend: Double?
     private var flushTask: Task<Void, Never>?
     private var sentTimes: [Date] = []
 
@@ -52,16 +51,12 @@ final class LiveActivityController {
         let content = ActivityContent(state: state, staleDate: Date().addingTimeInterval(30))
         activity = try Activity.request(attributes: attributes, content: content, pushType: nil)
         lastSent = Date()
-        peakSinceLastSend = nil
     }
 
     /// Transmet le dernier état ; l'envoi réel est limité à `minInterval`.
     func submit(_ state: TelemetryAttributes.ContentState) {
         guard activity != nil else { return }
         latest = state
-        if let boost = state.boostBar {
-            peakSinceLastSend = max(peakSinceLastSend ?? boost, boost)
-        }
 
         let elapsed = Date().timeIntervalSince(lastSent)
         if elapsed >= minInterval {
@@ -77,9 +72,7 @@ final class LiveActivityController {
     }
 
     private func flush() {
-        guard let activity, var state = latest else { return }
-        state.peakBoostBar = peakSinceLastSend ?? state.boostBar
-        peakSinceLastSend = nil
+        guard let activity, let state = latest else { return }
         latest = nil
         lastSent = Date()
         sentTimes.append(lastSent)

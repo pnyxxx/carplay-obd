@@ -19,6 +19,11 @@ struct SettingsView: View {
                     Stepper(value: $store.settings.redlineRPM, in: 2000...9000, step: 250) {
                         LabeledContent("Zone rouge", value: "\(Int(store.settings.redlineRPM)) tr/min")
                     }
+                    Picker("Maintien du max turbo", selection: $store.settings.peakHoldSeconds) {
+                        Text("3 s").tag(3.0)
+                        Text("5 s").tag(5.0)
+                        Text("10 s").tag(10.0)
+                    }
                 } header: {
                     Text("Véhicule")
                 } footer: {
@@ -37,7 +42,7 @@ struct SettingsView: View {
                 } header: {
                     Text("CarPlay (Live Activity)")
                 } footer: {
-                    Text("Dans CarPlay, les jauges apparaissent sur le Dashboard (écran partagé carte + infos). iOS limite le rythme des mises à jour : l'app envoie le pic de turbo de chaque intervalle pour ne rien rater. Les jauges de l'iPhone, elles, sont en temps réel.")
+                    Text("Dans CarPlay, les jauges apparaissent sur le Dashboard (écran partagé carte + infos). iOS limite le rythme des mises à jour : après chaque pic, le max de turbo reste affiché (pastille MAX) pendant la durée choisie dans « Véhicule ». Les jauges de l'iPhone, elles, sont en temps réel.")
                 }
 
                 Section {
@@ -60,7 +65,7 @@ struct SettingsView: View {
                         Text("Pour que tout démarre seul en montant dans la voiture :").font(.subheadline.weight(.semibold))
                         Text("1. App Raccourcis > Automatisation > +")
                         Text("2. CarPlay > « Se connecte » > Exécuter immédiatement")
-                        Text("3. Action « Démarrer la télémétrie » (TrackGauge)")
+                        Text("3. Action « Démarrer la télémétrie » (TrackData)")
                         Text("Facultatif : même chose avec « Se déconnecte » et « Arrêter la télémétrie ».")
                             .foregroundStyle(.secondary)
                     }

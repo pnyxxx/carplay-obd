@@ -98,8 +98,8 @@ final class NowPlayingDisplay {
 
         var info: [String: Any] = [
             MPMediaItemPropertyTitle: "\(Format.boost(snapshot.boostBar)) bar · \(Format.rpm(snapshot.rpm)) tr/min",
-            MPMediaItemPropertyArtist: "Eau \(Format.temp(snapshot.coolantC)) · Air \(Format.temp(snapshot.intakeAirC)) · max \(Format.boost(snapshot.peakBoostBar))",
-            MPMediaItemPropertyAlbumTitle: "TrackGauge",
+            MPMediaItemPropertyArtist: "Eau \(Format.temp(snapshot.coolantC)) · Air \(Format.temp(snapshot.intakeAirC))" + (snapshot.peakBoostBar.map { " · MAX \(Format.boost($0))" } ?? ""),
+            MPMediaItemPropertyAlbumTitle: "TrackData",
             MPNowPlayingInfoPropertyIsLiveStream: true,
             MPNowPlayingInfoPropertyPlaybackRate: 1.0,
         ]

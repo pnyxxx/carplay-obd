@@ -1,4 +1,4 @@
-# TrackGauge : turbo, régime et température en direct (iPhone + CarPlay)
+# TrackData : turbo, régime et température en direct (iPhone + CarPlay)
 
 Projet de test pour la piste. On lit le moteur avec un adaptateur **Veepeak OBDCheck BLE+**, puis on affiche :
 
@@ -51,7 +51,7 @@ Veepeak BLE+ ──Bluetooth LE──▶ BLELink ──▶ OBDKit (ELM327 : init
 
 ### À chaque nouvelle version (et au moins tous les 7 jours)
 
-1. `./scripts/telecharger-ipa.sh` : l'IPA arrive dans `~/Téléchargements/TrackGauge-unsigned.ipa`.
+1. `./scripts/telecharger-ipa.sh` : l'IPA arrive dans `~/Téléchargements/TrackData-unsigned.ipa`.
 2. Ouvrir iloader, se connecter avec son identifiant Apple, choisir l'iPhone, puis **Import IPA** et sélectionner le fichier.
 3. Première fois seulement, sur l'iPhone :
    - **Réglages > Confidentialité et sécurité > Mode développeur** : activer, puis redémarrer ;
@@ -67,11 +67,15 @@ Avec un compte gratuit, l'app expire au bout de **7 jours** : il suffit de refai
 ## Utilisation
 
 1. Brancher le Veepeak sur la prise OBD (sous le volant, à gauche) et **mettre le contact**. Ne pas l'appairer dans les réglages Bluetooth de l'iPhone.
-2. Ouvrir TrackGauge, appuyer sur **Connecter**. L'app trouve l'adaptateur, le mémorise, détecte le protocole et les capteurs, puis lit en continu. Le bouton liste permet de choisir l'adaptateur à la main.
+2. Ouvrir TrackData, appuyer sur **Connecter**. L'app trouve l'adaptateur, le mémorise, détecte le protocole et les capteurs, puis lit en continu. Le bouton liste permet de choisir l'adaptateur à la main.
 3. Autoriser le Bluetooth, la localisation (pour rester actif en arrière-plan) et les Live Activities.
 4. Dans CarPlay : la Live Activity apparaît **sur le Dashboard** (écran partagé). Bouton CarPlay de l'app pour l'afficher ou la retirer.
-   - Si rien n'apparaît : **Réglages > TrackGauge > Live Activities** activé ; **Réglages > Général > CarPlay > [ta voiture]** pour les options d'affichage.
+   - Si rien n'apparaît : **Réglages > TrackData > Live Activities** activé ; **Réglages > Général > CarPlay > [ta voiture]** pour les options d'affichage.
 5. **Démo** : sans voiture, une 320d simulée enchaîne des accélérations. Toute la chaîne (OBD, jauges, Live Activity, CarPlay) est exercée.
+
+### Max de turbo maintenu
+
+Après chaque pic, le max de turbo reste affiché quelques secondes dans une pastille orange **MAX 1.58**, avec un repère blanc sur l'arc : dans CarPlay, sur l'écran verrouillé et sur l'iPhone. Durée réglable (3, 5 ou 10 s) dans Réglages > Véhicule. Le « Pic session » de l'iPhone garde, lui, le record jusqu'à sa remise à zéro.
 
 ### Les trois affichages CarPlay
 
@@ -87,7 +91,7 @@ Le bouton **CarPlay** de l'app ouvre un menu :
 ### Démarrage automatique : tu montes, tu démarres, les jauges s'affichent
 
 1. **Une seule fois** : connecte l'adaptateur depuis l'app (bouton Connecter). Il est **mémorisé**.
-2. **Une seule fois** : crée l'automatisation dans l'app **Raccourcis** > **Automatisation** > **+** > **CarPlay** > **Se connecte** > **Exécuter immédiatement**, avec l'action **« Démarrer la télémétrie »** (TrackGauge). Facultatif : une deuxième avec **Se déconnecte** et **« Arrêter la télémétrie »**.
+2. **Une seule fois** : crée l'automatisation dans l'app **Raccourcis** > **Automatisation** > **+** > **CarPlay** > **Se connecte** > **Exécuter immédiatement**, avec l'action **« Démarrer la télémétrie »** (TrackData). Facultatif : une deuxième avec **Se déconnecte** et **« Arrêter la télémétrie »**.
 3. Ensuite, à chaque fois : contact, CarPlay se connecte. L'automatisation réveille l'app en arrière-plan, qui se reconnecte au Veepeak et affiche la Live Activity sur le Dashboard CarPlay. Rien à toucher.
 
 Ce qui se passe en coulisses :
@@ -95,7 +99,7 @@ Ce qui se passe en coulisses :
 - **Sans voiture pendant 1 min 30** (contact coupé), l'app passe **en veille** pour économiser la batterie (GPS et son coupés). Si l'adaptateur s'est éteint, iOS garde une demande de connexion et **réveille l'app quand il se rallume**, même si iOS l'avait fermée entre-temps.
 - **Ne ferme pas l'app à la main** (balayage vers le haut dans le sélecteur d'apps) : iOS ne pourrait plus la relancer seul.
 - iOS ne permet pas de créer la Live Activity quand l'app démarre seule en arrière-plan, sauf par le raccourci. D'où l'automatisation CarPlay. Sans elle, les données arrivent quand même, mais la Live Activity n'apparaît qu'à l'ouverture de l'app.
-- Pour que le GPS (qui garde l'app active) puisse aussi repartir seul, choisis **Localisation : Toujours** (Réglages > TrackGauge > Position).
+- Pour que le GPS (qui garde l'app active) puisse aussi repartir seul, choisis **Localisation : Toujours** (Réglages > TrackData > Position).
 
 ### Diagnostic
 

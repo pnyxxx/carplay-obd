@@ -38,7 +38,7 @@ targets:
     info:
       path: App/Info.plist
       properties:
-        CFBundleDisplayName: TrackGauge
+        CFBundleDisplayName: TrackData
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         LSRequiresIPhoneOS: true
@@ -57,7 +57,7 @@ targets:
           - audio
           - bluetooth-central
           - location
-        NSBluetoothAlwaysUsageDescription: "TrackGauge se connecte à l'adaptateur OBD Bluetooth pour lire le turbo, le régime et les températures."
+        NSBluetoothAlwaysUsageDescription: "TrackData se connecte à l'adaptateur OBD Bluetooth pour lire le turbo, le régime et les températures."
         NSLocationWhenInUseUsageDescription: "Le GPS garde la lecture OBD active quand l'iPhone est verrouillé ou que CarPlay est affiché, et donne la vitesse."
         NSLocationAlwaysAndWhenInUseUsageDescription: "Le GPS garde la lecture OBD active quand l'iPhone est verrouillé ou que CarPlay est affiché, et donne la vitesse."
         NSSupportsLiveActivities: true
@@ -78,7 +78,7 @@ targets:
     info:
       path: LiveActivity/Info.plist
       properties:
-        CFBundleDisplayName: TrackGauge
+        CFBundleDisplayName: TrackData
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         NSExtension:

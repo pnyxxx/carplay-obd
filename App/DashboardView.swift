@@ -61,7 +61,7 @@ struct BoostPanel: View {
             ZStack {
                 ArcGauge(
                     fraction: store.boostBar.map { $0 / scale },
-                    peakFraction: store.peakBoostBar.map { $0 / scale },
+                    peakFraction: store.displayedPeakBar.map { $0 / scale },
                     targetFraction: store.boostTargetBar.map { $0 / scale },
                     lineWidth: side * 0.06,
                     showNeedle: store.boostBar != nil
@@ -84,6 +84,10 @@ struct BoostPanel: View {
                     Text("bar turbo")
                         .font(.system(size: max(11, side * 0.05), weight: .semibold))
                         .foregroundStyle(.secondary)
+                    if let peak = store.displayedPeakBar {
+                        PeakBadge(value: peak, font: .system(size: max(12, side * 0.06), weight: .heavy))
+                            .padding(.top, 4)
+                    }
                 }
                 .offset(y: side * 0.2)
             }
@@ -91,7 +95,7 @@ struct BoostPanel: View {
 
             HStack(spacing: 16) {
                 HStack(spacing: 6) {
-                    Text("Pic \(Format.boost(store.peakBoostBar))")
+                    Text("Pic session \(Format.boost(store.peakBoostBar))")
                     if store.peakBoostBar != nil {
                         Button {
                             store.resetPeak()

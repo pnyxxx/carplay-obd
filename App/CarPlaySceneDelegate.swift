@@ -52,7 +52,7 @@ final class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegat
 
         let gauges = CPListSection(items: [boostItem, rpmItem, coolantItem, airItem], header: "Moteur", sectionIndexTitle: nil)
         let controls = CPListSection(items: [connectionItem], header: nil, sectionIndexTitle: nil)
-        let template = CPListTemplate(title: "TrackGauge", sections: [gauges, controls])
+        let template = CPListTemplate(title: "TrackData", sections: [gauges, controls])
         interfaceController.setRootTemplate(template, animated: false, completion: nil)
 
         refreshTask = Task { @MainActor [weak self] in

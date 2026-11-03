@@ -62,13 +62,13 @@ jobs:
           echo "--- Info.plist"; plutil -p "$APP/Info.plist" | grep -E "CFBundle(Identifier|Version|ShortVersionString)|UIBackgroundModes|NSSupportsLiveActivities" -A3
           mkdir -p ipa/Payload
           cp -R "$APP" ipa/Payload/
-          (cd ipa && zip -qry ../TrackGauge-unsigned.ipa Payload)
-          ls -lh TrackGauge-unsigned.ipa
+          (cd ipa && zip -qry ../TrackData-unsigned.ipa Payload)
+          ls -lh TrackData-unsigned.ipa
 
       - uses: actions/upload-artifact@v4
         with:
-          name: TrackGauge-unsigned-${{ github.run_number }}
-          path: TrackGauge-unsigned.ipa
+          name: TrackData-unsigned-${{ github.run_number }}
+          path: TrackData-unsigned.ipa
 
       - name: Publier la release « latest »
         if: github.ref == 'refs/heads/main'
@@ -76,7 +76,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release delete latest --yes --cleanup-tag || true
-          gh release create latest TrackGauge-unsigned.ipa \
+          gh release create latest TrackData-unsigned.ipa \
             --title "Dernière version (build ${{ github.run_number }})" \
             --notes "IPA non signée, construite depuis ${{ github.sha }}. À signer et installer avec iloader (compte Apple gratuit), voir le README." \
             --target ${{ github.sha }} --prerelease
