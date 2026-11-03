@@ -19,6 +19,8 @@ struct AppSettings: Codable, Equatable {
     // CarPlay / Live Activity
     var autoStartLiveActivity = true
     var liveActivityInterval: Double = 1.0
+    /// Rythme CarPlay : "fast", "balanced" ou "eco" (réserve d'envois pour ne jamais épuiser le budget d'iOS).
+    var liveActivityPace: String = "balanced"
 
     // Démarrage automatique
     var autoConnect = true

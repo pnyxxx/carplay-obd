@@ -3,22 +3,85 @@ import Foundation
 
 /// Pilote la Live Activity affichée sur l'écran verrouillé, la Dynamic Island et le Dashboard CarPlay.
 ///
-/// iOS limite la fréquence des mises à jour (budget non publié par Apple) : au-delà, il ne les affiche plus
-/// que toutes les 5 à 15 s tant que l'écran de l'iPhone est éteint. Pour ménager ce budget, on n'envoie une
-/// mise à jour que si une valeur change de façon visible (au plus une par `minInterval`), sinon toutes les 5 s.
+/// iOS accorde aux Live Activities un budget de mises à jour qui se recharge lentement (non publié par Apple).
+/// Une fois épuisé, il ne les affiche plus que toutes les 15 à 20 s tant que l'écran de l'iPhone est éteint
+/// (constaté : épuisé en ~1 min à 2 envois/s, en ~5 min en n'envoyant que les changements visibles).
+/// On tient donc notre propre réserve, plus prudente que celle d'iOS : pleine, on envoie tout changement visible ;
+/// à mesure qu'elle baisse, seuls les changements de plus en plus importants partent. Le rythme moyen reste
+/// ainsi soutenable sans fin, au lieu de geler au bout de quelques minutes.
 @MainActor
 final class LiveActivityController {
+    struct Budget: Equatable {
+        /// Nombre d'envois que la réserve peut contenir.
+        var capacity: Double
+        /// Envois regagnés par seconde (rythme moyen soutenable).
+        var refillPerSecond: Double
+    }
+
+    enum Pace: String, CaseIterable {
+        case fast, balanced, eco
+
+        /// nil = pas de réserve : tout changement visible part (iOS finit par geler l'affichage).
+        var budget: Budget? {
+            switch self {
+            case .fast: return nil
+            case .balanced: return Budget(capacity: 100, refillPerSecond: 0.4)   // 24 / min en moyenne
+            case .eco: return Budget(capacity: 60, refillPerSecond: 0.25)        // 15 / min en moyenne
+            }
+        }
+
+        var label: String {
+            switch self {
+            case .fast: return "Maximum (gèle après ~5 min)"
+            case .balanced: return "Équilibré (conseillé)"
+            case .eco: return "Économe"
+            }
+        }
+    }
+
     private(set) var activity: Activity<TelemetryAttributes>?
     private var lastSent = Date.distantPast
     private var latest: TelemetryAttributes.ContentState?
     private var lastSentState: TelemetryAttributes.ContentState?
     /// Envoi « de maintien » quand rien ne bouge (garde la Live Activity fraîche).
-    private let heartbeat: TimeInterval = 5
+    private let heartbeat: TimeInterval = 10
     private var flushTask: Task<Void, Never>?
     private var sentTimes: [Date] = []
 
     /// Intervalle minimal entre deux mises à jour (s).
     var minInterval: TimeInterval = 1
+
+    /// Réserve d'envois (nil = illimitée).
+    var budget: Budget? = Pace.balanced.budget {
+        didSet {
+            if let budget { tokens = min(tokens, budget.capacity) } else { tokens = 0 }
+            if oldValue == nil, let budget { tokens = budget.capacity }
+        }
+    }
+    private var tokens: Double = Pace.balanced.budget?.capacity ?? 0
+    private var lastRefill = Date()
+
+    /// Compte rendu chaque minute (pour le journal) : envois de la minute écoulée, réserve restante.
+    var onMinuteReport: ((Int, Double?) -> Void)?
+    private var lastReport = Date()
+
+    /// Réserve restante (0…1), nil si illimitée.
+    var reserve: Double? {
+        guard let budget else { return nil }
+        refill()
+        return tokens / budget.capacity
+    }
+
+    private func refill() {
+        let now = Date()
+        if let budget {
+            tokens = min(budget.capacity, tokens + now.timeIntervalSince(lastRefill) * budget.refillPerSecond)
+        }
+        lastRefill = now
+    }
+
+    /// Un envoi est-il permis par la réserve ?
+    private var canSpend: Bool { budget == nil || tokens >= 1 }
 
     var isActive: Bool {
         guard let activity else { return false }
@@ -57,14 +120,21 @@ final class LiveActivityController {
         lastSent = Date()
     }
 
-    /// Transmet le dernier état. Envoi seulement si un changement est visible (au plus une fois par
-    /// `minInterval`), ou toutes les `heartbeat` secondes si rien ne bouge.
+    /// Transmet le dernier état. Part si le changement est assez important pour la réserve restante
+    /// (au plus une fois par `minInterval`), ou toutes les `heartbeat` secondes si rien ne bouge.
     func submit(_ state: TelemetryAttributes.ContentState) {
         guard activity != nil else { return }
         latest = state
+        refill()
+        reportIfNeeded()
 
         let elapsed = Date().timeIntervalSince(lastSent)
-        let significant = lastSentState.map { Self.visiblyDifferent(state, from: $0) } ?? true
+        let importance = lastSentState.map { Self.importance(state, from: $0) } ?? .infinity
+        // Réserve pleine : tout changement visible (importance ≥ 1) part. Réserve vide : il faut un changement
+        // 4 fois plus grand (ex. 0,2 bar de turbo, 20 ch). Les changements d'état passent toujours.
+        let scarcity = budget.map { 1 - min(max(tokens / $0.capacity, 0), 1) } ?? 0
+        let threshold = 1 + 3 * scarcity
+        let significant = importance >= threshold && (canSpend || importance >= 100)
         if significant {
             if elapsed >= minInterval {
                 flush()
@@ -76,36 +146,45 @@ final class LiveActivityController {
                     self?.flush()
                 }
             }
-        } else if elapsed >= heartbeat {
+        } else if elapsed >= heartbeat && canSpend {
             flush()
         }
     }
 
-    /// Vrai si l'affichage changerait de façon perceptible.
-    private static func visiblyDifferent(_ a: TelemetryAttributes.ContentState, from b: TelemetryAttributes.ContentState) -> Bool {
-        func moved(_ x: Double?, _ y: Double?, by threshold: Double) -> Bool {
+    /// Importance d'un changement, en « pas visibles » (1 = juste perceptible) ; 100 = changement d'état.
+    private static func importance(_ a: TelemetryAttributes.ContentState, from b: TelemetryAttributes.ContentState) -> Double {
+        if a.connected != b.connected || a.statusText != b.statusText { return 100 }
+        func steps(_ x: Double?, _ y: Double?, per step: Double) -> Double {
             switch (x, y) {
-            case let (x?, y?): return abs(x - y) >= threshold
-            case (nil, nil): return false
-            default: return true
+            case let (x?, y?): return abs(x - y) / step
+            case (nil, nil): return 0
+            default: return 10   // valeur qui apparaît ou disparaît (ex. pastille MAX)
             }
         }
-        return a.connected != b.connected
-            || a.statusText != b.statusText
-            || moved(a.boostBar, b.boostBar, by: 0.05)
-            || moved(a.powerCh, b.powerCh, by: 5)
-            || moved(a.coolantC, b.coolantC, by: 1)
-            || moved(a.oilC, b.oilC, by: 1)
-            || moved(a.rpm, b.rpm, by: 150)
-            || moved(a.intakeAirC, b.intakeAirC, by: 2)
-            || moved(a.peakBoostBar, b.peakBoostBar, by: 0.05)
-            || moved(a.peakPowerCh, b.peakPowerCh, by: 5)
+        return [
+            steps(a.boostBar, b.boostBar, per: 0.05),
+            steps(a.powerCh, b.powerCh, per: 5),
+            steps(a.coolantC, b.coolantC, per: 1),
+            steps(a.oilC, b.oilC, per: 1),
+            steps(a.rpm, b.rpm, per: 150),
+            steps(a.intakeAirC, b.intakeAirC, per: 2),
+            steps(a.peakBoostBar, b.peakBoostBar, per: 0.05),
+            steps(a.peakPowerCh, b.peakPowerCh, per: 5),
+        ].max() ?? 0
+    }
+
+    private func reportIfNeeded() {
+        guard Date().timeIntervalSince(lastReport) >= 60 else { return }
+        lastReport = Date()
+        onMinuteReport?(updatesLastMinute, reserve)
     }
 
     private func flush() {
         guard let activity, let state = latest else { return }
+        refill()
         latest = nil
         lastSentState = state
+        if budget != nil { tokens = max(0, tokens - 1) }
         lastSent = Date()
         sentTimes.append(lastSent)
         if sentTimes.count > 200 { sentTimes.removeFirst(sentTimes.count - 200) }

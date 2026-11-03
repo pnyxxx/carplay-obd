@@ -29,6 +29,7 @@ final class TelemetryStore {
         didSet {
             settings.save()
             liveActivity.minInterval = settings.liveActivityInterval
+            liveActivity.budget = LiveActivityController.Pace(rawValue: settings.liveActivityPace)?.budget
             if settings.keepAliveWithGPS != oldValue.keepAliveWithGPS { updateKeepAlive() }
         }
     }
@@ -154,6 +155,11 @@ final class TelemetryStore {
 
     private init() {
         liveActivity.minInterval = settings.liveActivityInterval
+        liveActivity.budget = LiveActivityController.Pace(rawValue: settings.liveActivityPace)?.budget
+        liveActivity.onMinuteReport = { [weak self] count, reserve in
+            let reserveText = reserve.map { "réserve \(Int($0 * 100)) %" } ?? "sans réserve"
+            self?.log(.info, "CarPlay : \(count) mises à jour la dernière minute, \(reserveText)")
+        }
         link.onDevicesChanged = { [weak self] devices in
             Task { @MainActor in self?.devices = devices }
         }
@@ -519,6 +525,7 @@ final class TelemetryStore {
     }
 
     var liveActivityUpdatesPerMinute: Int { liveActivity.updatesLastMinute }
+    var liveActivityReserve: Double? { liveActivity.reserve }
 
     private func pushLiveActivity() {
         guard liveActivityActive else { return }

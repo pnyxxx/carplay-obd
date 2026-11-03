@@ -47,11 +47,19 @@ struct SettingsView: View {
                         Text("2 s").tag(2.0)
                         Text("5 s").tag(5.0)
                     }
+                    Picker("Rythme CarPlay", selection: $store.settings.liveActivityPace) {
+                        ForEach(LiveActivityController.Pace.allCases, id: \.rawValue) { pace in
+                            Text(pace.label).tag(pace.rawValue)
+                        }
+                    }
                     LabeledContent("Mises à jour envoyées", value: "\(store.liveActivityUpdatesPerMinute) / min")
+                    if let reserve = store.liveActivityReserve {
+                        LabeledContent("Réserve", value: "\(Int(reserve * 100)) %")
+                    }
                 } header: {
                     Text("CarPlay (Live Activity)")
                 } footer: {
-                    Text("Dans CarPlay, les jauges apparaissent sur le Dashboard (écran partagé carte + infos). iOS limite le rythme des mises à jour : quand l'écran de l'iPhone est éteint, il finit par ne les afficher que toutes les 5 à 15 s (allume l'écran verrouillé pour revenir au temps réel). Pour ménager ce budget, l'app n'envoie que les changements visibles. Après chaque pic, les max (pastille MAX) restent affichés pendant la durée choisie dans « Véhicule » : 10 s conseillé pour CarPlay. Les jauges de l'iPhone, elles, sont en temps réel.")
+                    Text("Dans CarPlay, les jauges apparaissent sur le Dashboard (écran partagé carte + infos). iOS limite le rythme des mises à jour : quand l'écran de l'iPhone est éteint, il finit par ne les afficher que toutes les 5 à 15 s (allume l'écran verrouillé pour revenir au temps réel). Pour ne jamais l'épuiser, l'app tient une réserve : pleine, elle envoie chaque changement visible au rythme choisi ; quand elle baisse, seuls les gros changements partent (coup de turbo, pic, montée de puissance). « Équilibré » vise à ne jamais geler ; « Maximum » est plus rapide au début mais gèle après quelques minutes. Après chaque pic, les max (pastille MAX) restent affichés pendant la durée choisie dans « Véhicule » : 10 s conseillé pour CarPlay. Les jauges de l'iPhone, elles, sont en temps réel.")
                 }
 
                 if let expiry = ExpirationReminder.expirationDate {
@@ -227,6 +235,9 @@ struct DiagnosticsView: View {
                 LabeledContent("Aller-retour moyen", value: String(format: "%.0f ms", store.stats.averageLatencyMs))
                 LabeledContent("NO DATA / délais dépassés", value: "\(store.stats.noDataCount) / \(store.stats.timeoutCount)")
                 LabeledContent("Live Activity", value: "\(store.liveActivityUpdatesPerMinute) mises à jour / min")
+                if let reserve = store.liveActivityReserve {
+                    LabeledContent("Réserve CarPlay", value: "\(Int(reserve * 100)) %")
+                }
             }
 
             Section("Valeurs brutes") {
