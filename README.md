@@ -84,9 +84,18 @@ Le bouton **CarPlay** de l'app ouvre un menu :
 2. Demander le droit « Driving task » sur https://developer.apple.com/carplay. Apple décide ; son guide exclut les données moteur en temps réel, donc un refus est possible.
 3. Si c'est accordé : ajouter `CODE_SIGN_ENTITLEMENTS: App/TrackGauge-CarPlay.entitlements` dans `project.yml` et signer avec le profil qui contient ce droit (je peux alors adapter le workflow pour TestFlight). Les versions de test ne passent pas par la validation de l'App Store : la consigne « 1 rafraîchissement toutes les 10 s » ne s'applique pas, l'app rafraîchit 5 fois par seconde.
 
-### Démarrage automatique en montant dans la voiture
+### Démarrage automatique : tu montes, tu démarres, les jauges s'affichent
 
-App **Raccourcis > Automatisation > + > CarPlay > Se connecte > Exécuter immédiatement**, action **« Démarrer la télémétrie »** (TrackGauge). Même chose avec « Se déconnecte » pour « Arrêter la télémétrie ».
+1. **Une seule fois** : connecte l'adaptateur depuis l'app (bouton Connecter). Il est **mémorisé**.
+2. **Une seule fois** : crée l'automatisation dans l'app **Raccourcis** > **Automatisation** > **+** > **CarPlay** > **Se connecte** > **Exécuter immédiatement**, avec l'action **« Démarrer la télémétrie »** (TrackGauge). Facultatif : une deuxième avec **Se déconnecte** et **« Arrêter la télémétrie »**.
+3. Ensuite, à chaque fois : contact, CarPlay se connecte. L'automatisation réveille l'app en arrière-plan, qui se reconnecte au Veepeak et affiche la Live Activity sur le Dashboard CarPlay. Rien à toucher.
+
+Ce qui se passe en coulisses :
+- **À l'ouverture de l'app**, elle se reconnecte seule à l'adaptateur mémorisé.
+- **Sans voiture pendant 1 min 30** (contact coupé), l'app passe **en veille** pour économiser la batterie (GPS et son coupés). Si l'adaptateur s'est éteint, iOS garde une demande de connexion et **réveille l'app quand il se rallume**, même si iOS l'avait fermée entre-temps.
+- **Ne ferme pas l'app à la main** (balayage vers le haut dans le sélecteur d'apps) : iOS ne pourrait plus la relancer seul.
+- iOS ne permet pas de créer la Live Activity quand l'app démarre seule en arrière-plan, sauf par le raccourci. D'où l'automatisation CarPlay. Sans elle, les données arrivent quand même, mais la Live Activity n'apparaît qu'à l'ouverture de l'app.
+- Pour que le GPS (qui garde l'app active) puisse aussi repartir seul, choisis **Localisation : Toujours** (Réglages > TrackGauge > Position).
 
 ### Diagnostic
 
