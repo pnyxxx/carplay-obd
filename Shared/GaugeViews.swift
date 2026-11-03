@@ -36,22 +36,22 @@ enum GaugePalette {
 
 enum Format {
     static func boost(_ bar: Double?) -> String {
-        guard let bar else { return "–.––" }
+        guard let bar else { return "—" }
         return String(format: "%.2f", bar)
     }
 
     static func boostShort(_ bar: Double?) -> String {
-        guard let bar else { return "–.–" }
+        guard let bar else { return "—" }
         return String(format: "%.1f", bar)
     }
 
     static func rpm(_ rpm: Double?) -> String {
-        guard let rpm else { return "––––" }
+        guard let rpm else { return "—" }
         return String(Int(rpm.rounded()))
     }
 
     static func temp(_ celsius: Double?) -> String {
-        guard let celsius else { return "––°" }
+        guard let celsius else { return "—" }
         return "\(Int(celsius.rounded()))°"
     }
 }

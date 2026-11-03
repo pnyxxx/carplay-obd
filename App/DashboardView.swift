@@ -14,8 +14,8 @@ struct DashboardView: View {
                 Color.black.ignoresSafeArea()
                 if landscape {
                     HStack(alignment: .top, spacing: 20) {
-                        BoostPanel()
-                            .frame(width: min(geo.size.height * 0.95, geo.size.width * 0.48))
+                        BoostPanel(maxGaugeSide: geo.size.height * 0.72)
+                            .frame(width: min(geo.size.height * 0.9, geo.size.width * 0.45))
                         VStack(spacing: 12) {
                             StatusBar()
                             RPMPanel()
@@ -26,12 +26,13 @@ struct DashboardView: View {
                     }
                     .padding(.horizontal)
                 } else {
-                    VStack(spacing: 14) {
+                    VStack(spacing: 12) {
                         StatusBar()
-                        BoostPanel()
+                        BoostPanel(maxGaugeSide: min(geo.size.width * 0.78, geo.size.height * 0.34))
                         RPMPanel()
                         TemperatureRow()
                         Spacer(minLength: 0)
+                        HintCard()
                         ControlBar(showSettings: $showSettings, showDevices: $showDevices)
                     }
                     .padding(.horizontal)
@@ -51,45 +52,59 @@ struct DashboardView: View {
 
 struct BoostPanel: View {
     @Environment(TelemetryStore.self) private var store
+    var maxGaugeSide: CGFloat
 
     var body: some View {
         let scale = max(store.settings.boostMaxBar, 0.5)
+        let side = max(maxGaugeSide, 160)
         VStack(spacing: 6) {
             ZStack {
                 ArcGauge(
                     fraction: store.boostBar.map { $0 / scale },
                     peakFraction: store.peakBoostBar.map { $0 / scale },
                     targetFraction: store.boostTargetBar.map { $0 / scale },
-                    lineWidth: 18,
-                    showNeedle: true
+                    lineWidth: side * 0.06,
+                    showNeedle: store.boostBar != nil
                 )
                 .animation(.linear(duration: 0.08), value: store.boostBar ?? 0)
 
-                GaugeScaleLabels(maxValue: scale, lineWidth: 18)
+                GaugeScaleLabels(maxValue: scale, lineWidth: side * 0.06)
 
+                // Valeur au centre, sous le pivot de l'aiguille.
                 VStack(spacing: 0) {
-                    Text(Format.boost(store.boostBar))
-                        .font(.system(size: 52, weight: .bold, design: .rounded).monospacedDigit())
-                        .foregroundStyle(.white)
+                    if let boost = store.boostBar {
+                        Text(Format.boost(boost))
+                            .font(.system(size: side * 0.17, weight: .bold, design: .rounded).monospacedDigit())
+                            .foregroundStyle(.white)
+                    } else {
+                        Text("—")
+                            .font(.system(size: side * 0.12, weight: .semibold, design: .rounded))
+                            .foregroundStyle(.secondary)
+                    }
                     Text("bar turbo")
-                        .font(.caption.weight(.semibold))
+                        .font(.system(size: max(11, side * 0.05), weight: .semibold))
                         .foregroundStyle(.secondary)
                 }
-                .offset(y: 54)
+                .offset(y: side * 0.2)
             }
-            .aspectRatio(1, contentMode: .fit)
+            .frame(width: side, height: side)
 
-            HStack(spacing: 14) {
-                Button {
-                    store.resetPeak()
-                } label: {
-                    Label("max \(Format.boost(store.peakBoostBar))", systemImage: "arrow.up.to.line")
+            HStack(spacing: 16) {
+                HStack(spacing: 6) {
+                    Text("Pic \(Format.boost(store.peakBoostBar))")
+                    if store.peakBoostBar != nil {
+                        Button {
+                            store.resetPeak()
+                        } label: {
+                            Image(systemName: "arrow.counterclockwise.circle.fill")
+                        }
+                        .buttonStyle(.plain)
+                        .foregroundStyle(.secondary)
+                        .accessibilityLabel("Remettre le pic à zéro")
+                    }
                 }
-                .buttonStyle(.plain)
-                .foregroundStyle(.white)
-
                 if let target = store.boostTargetBar {
-                    Label("consigne \(Format.boost(target))", systemImage: "scope")
+                    Text("Consigne \(Format.boost(target))")
                         .foregroundStyle(.yellow)
                 }
                 if store.boostSensorSaturated {
@@ -98,9 +113,12 @@ struct BoostPanel: View {
                 }
             }
             .font(.subheadline.monospacedDigit().weight(.semibold))
+            .foregroundStyle(.white)
 
-            BoostSparkline(samples: store.boostHistory, scale: scale)
-                .frame(height: 44)
+            if store.boostHistory.count > 2 {
+                BoostSparkline(samples: store.boostHistory, scale: scale)
+                    .frame(height: 40)
+            }
         }
     }
 }
@@ -112,13 +130,14 @@ struct GaugeScaleLabels: View {
 
     var body: some View {
         GeometryReader { geo in
-            let radius = min(geo.size.width, geo.size.height) / 2 - lineWidth * 2.4
+            let side = min(geo.size.width, geo.size.height)
+            let radius = side / 2 - lineWidth * 2.6
             let center = CGPoint(x: geo.size.width / 2, y: geo.size.height / 2)
             ForEach(0..<5, id: \.self) { index in
                 let fraction = Double(index) / 4
                 let angle = (135 + 270 * fraction) * .pi / 180
                 Text(String(format: maxValue < 2.5 ? "%.1f" : "%.0f", maxValue * fraction))
-                    .font(.caption2.monospacedDigit())
+                    .font(.system(size: max(10, side * 0.045)).monospacedDigit())
                     .foregroundStyle(.secondary)
                     .position(x: center.x + cos(angle) * radius, y: center.y + sin(angle) * radius)
             }
@@ -142,9 +161,13 @@ struct BoostSparkline: View {
                 }
             }
             .stroke(Color.cyan, style: StrokeStyle(lineWidth: 2, lineJoin: .round))
-            .background(
-                RoundedRectangle(cornerRadius: 8).fill(Color.white.opacity(0.05))
-            )
+            .background(RoundedRectangle(cornerRadius: 8).fill(Color.white.opacity(0.05)))
+            .overlay(alignment: .topLeading) {
+                Text("Turbo · 20 dernières secondes")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .padding(4)
+            }
         }
     }
 }
@@ -158,18 +181,24 @@ struct RPMPanel: View {
         let overRedline = (store.rpm ?? 0) >= store.settings.redlineRPM
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline, spacing: 6) {
-                Text(Format.rpm(store.rpm))
-                    .font(.system(size: 46, weight: .heavy, design: .rounded).monospacedDigit())
-                    .foregroundStyle(GaugePalette.rpm(store.rpm, redline: store.settings.redlineRPM))
+                if let rpm = store.rpm {
+                    Text(Format.rpm(rpm))
+                        .font(.system(size: 44, weight: .heavy, design: .rounded).monospacedDigit())
+                        .foregroundStyle(GaugePalette.rpm(rpm, redline: store.settings.redlineRPM))
+                } else {
+                    Text("—")
+                        .font(.system(size: 34, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.secondary)
+                }
                 Text("tr/min").font(.callout).foregroundStyle(.secondary)
                 Spacer()
-                if let speed = store.speedKmh ?? store.gpsSpeedKmh {
+                if store.isRunning, let speed = store.speedKmh ?? store.gpsSpeedKmh {
                     Text("\(Int(speed.rounded()))")
                         .font(.system(size: 30, weight: .bold, design: .rounded).monospacedDigit())
                     Text("km/h").font(.callout).foregroundStyle(.secondary)
                 }
             }
-            RPMBar(rpm: store.rpm, rpmMax: store.settings.rpmMax, redline: store.settings.redlineRPM, height: 18)
+            RPMBar(rpm: store.rpm, rpmMax: store.settings.rpmMax, redline: store.settings.redlineRPM, height: 16)
                 .animation(.linear(duration: 0.08), value: store.rpm ?? 0)
         }
         .padding(14)
@@ -187,12 +216,12 @@ struct TemperatureRow: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            ValueTile(title: "Eau", value: Format.temp(store.coolantC), color: GaugePalette.coolant(store.coolantC), symbol: "thermometer.medium")
-            ValueTile(title: "Air admission", value: Format.temp(store.intakeAirC), color: .white, symbol: "wind")
+            ValueTile(title: "Eau", value: store.coolantC.map { Format.temp($0) }, color: GaugePalette.coolant(store.coolantC), symbol: "thermometer.medium")
+            ValueTile(title: "Air admis.", value: store.intakeAirC.map { Format.temp($0) }, color: .white, symbol: "wind")
             if store.oilC != nil {
-                ValueTile(title: "Huile", value: Format.temp(store.oilC), color: .orange, symbol: "drop.fill")
+                ValueTile(title: "Huile", value: store.oilC.map { Format.temp($0) }, color: .orange, symbol: "drop.fill")
             } else {
-                ValueTile(title: "Batterie", value: store.batteryV.map { String(format: "%.1f V", $0) } ?? "–", color: .white, symbol: "minus.plus.batteryblock")
+                ValueTile(title: "Batterie", value: store.batteryV.map { String(format: "%.1f V", $0) }, color: .white, symbol: "minus.plus.batteryblock")
             }
         }
     }
@@ -200,7 +229,7 @@ struct TemperatureRow: View {
 
 struct ValueTile: View {
     let title: String
-    let value: String
+    let value: String?
     let color: Color
     let symbol: String
 
@@ -211,13 +240,55 @@ struct ValueTile: View {
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
-            Text(value)
-                .font(.system(size: 28, weight: .bold, design: .rounded).monospacedDigit())
-                .foregroundStyle(color)
+            Text(value ?? "—")
+                .font(.system(size: value == nil ? 22 : 28, weight: .bold, design: .rounded).monospacedDigit())
+                .foregroundStyle(value == nil ? Color.secondary : color)
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(12)
         .background(RoundedRectangle(cornerRadius: 16).fill(Color.white.opacity(0.06)))
+    }
+}
+
+// MARK: - Aide
+
+/// Mode d'emploi affiché tant qu'aucune donnée n'arrive.
+struct HintCard: View {
+    @Environment(TelemetryStore.self) private var store
+
+    var body: some View {
+        if let text = hint {
+            HStack(alignment: .top, spacing: 10) {
+                Image(systemName: "info.circle.fill")
+                    .foregroundStyle(.cyan)
+                Text(text)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(12)
+            .background(RoundedRectangle(cornerRadius: 14).fill(Color.cyan.opacity(0.08)))
+        }
+    }
+
+    private var hint: String? {
+        switch store.connection {
+        case .idle:
+            return store.settings.savedAdapterID == nil
+                ? "Branche le Veepeak sur la prise OBD, mets le contact, puis touche « Connecter ». Pas de voiture sous la main ? Touche « Démo »."
+                : "Mets le contact puis touche « Connecter » : l'app se reconnecte à \(store.settings.savedAdapterName ?? "ton adaptateur")."
+        case .searching, .connecting:
+            return "Contact mis ? L'adaptateur doit être branché. Ne l'appaire pas dans les réglages Bluetooth de l'iPhone."
+        case .waiting:
+            return "L'app réessaie toute seule. Si ça dure, vérifie que le contact est mis."
+        case .standby:
+            return "En veille pour économiser la batterie : l'app repartira seule quand la voiture se rallume. Touche « Relancer » pour forcer."
+        case .initializing, .running:
+            return nil
+        }
     }
 }
 
@@ -235,14 +306,14 @@ struct StatusBar: View {
                 .truncationMode(.tail)
             Spacer()
             if case .running = store.connection {
-                Text(String(format: "%.0f Hz · %.0f ms", store.stats.fastUpdatesPerSecond, store.stats.averageLatencyMs))
+                Text(String(format: "%.0f mesures/s", store.stats.fastUpdatesPerSecond))
                     .font(.caption.monospacedDigit())
                     .foregroundStyle(.secondary)
             }
             if store.liveActivityActive || store.nowPlayingActive {
-                Image(systemName: "carplay")
+                Label("CarPlay", systemImage: "carplay")
+                    .font(.caption.weight(.semibold))
                     .foregroundStyle(.green)
-                    .accessibilityLabel("Affiché dans CarPlay")
             }
         }
         .padding(.top, 4)
@@ -260,7 +331,7 @@ struct StatusBar: View {
 
     private var statusText: String {
         switch store.connection {
-        case .idle: return "Déconnecté"
+        case .idle: return store.source == nil ? "Déconnecté" : "Démarrage…"
         case .searching: return "Recherche de l'adaptateur OBD…"
         case .connecting(let name): return "Connexion à \(name)…"
         case .initializing(let text): return text
@@ -283,76 +354,126 @@ struct ControlBar: View {
             if let error = store.liveActivityError {
                 Text(error).font(.footnote).foregroundStyle(.orange)
             }
-            HStack(spacing: 10) {
-                if store.isStandby {
-                    Button {
-                        store.wake()
-                    } label: {
-                        Label("Relancer", systemImage: "arrow.clockwise").frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.glassProminent)
-                }
-                if store.isRunning {
-                    Button(role: .destructive) {
-                        store.stop()
-                    } label: {
-                        Label("Arrêter", systemImage: "stop.fill").frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.glass)
-                } else {
-                    Button {
-                        store.start(.adapter)
-                    } label: {
-                        Label("Connecter", systemImage: "antenna.radiowaves.left.and.right").frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.glassProminent)
 
-                    Button {
-                        store.start(.demo)
-                    } label: {
-                        Label("Démo", systemImage: "play.fill")
-                    }
-                    .buttonStyle(.glass)
+            // Action principale, en grand.
+            primaryButton
+                .controlSize(.large)
+
+            // Actions secondaires, chacune avec son nom.
+            HStack(spacing: 8) {
+                ToolButton(
+                    title: store.source == .demo ? "Stop démo" : "Démo",
+                    systemImage: store.source == .demo ? "stop.fill" : "play.fill",
+                    active: store.source == .demo
+                ) {
+                    if store.source == .demo { store.stop() } else { store.start(.demo) }
                 }
 
                 Menu {
-                    Toggle(isOn: Binding(
-                        get: { store.liveActivityActive },
-                        set: { $0 ? store.startLiveActivity() : store.stopLiveActivity() }
-                    )) {
-                        Label("Live Activity (Dashboard)", systemImage: "rectangle.split.2x1")
-                    }
-                    Toggle(isOn: Binding(
-                        get: { store.nowPlayingActive },
-                        set: { $0 ? store.startNowPlaying() : store.stopNowPlaying() }
-                    )) {
-                        Label("Écran « À l'écoute » (expérimental)", systemImage: "play.rectangle")
+                    Section("Afficher dans CarPlay") {
+                        Toggle(isOn: Binding(
+                            get: { store.liveActivityActive },
+                            set: { $0 ? store.startLiveActivity() : store.stopLiveActivity() }
+                        )) {
+                            Label("Jauges sur le Dashboard (Live Activity)", systemImage: "rectangle.split.2x1")
+                        }
+                        Toggle(isOn: Binding(
+                            get: { store.nowPlayingActive },
+                            set: { $0 ? store.startNowPlaying() : store.stopNowPlaying() }
+                        )) {
+                            Label("Jauges dans « À l'écoute » (test, coupe la musique)", systemImage: "play.rectangle")
+                        }
                     }
                 } label: {
-                    Image(systemName: "carplay")
-                        .foregroundStyle(store.liveActivityActive || store.nowPlayingActive ? Color.green : Color.white)
+                    ToolButtonLabel(title: "CarPlay", systemImage: "carplay", active: store.liveActivityActive || store.nowPlayingActive)
                 }
-                .buttonStyle(.glass)
-                .accessibilityLabel("Affichage CarPlay")
+                .buttonStyle(.plain)
 
-                Button {
+                ToolButton(title: "Adaptateur", systemImage: "antenna.radiowaves.left.and.right", active: false) {
                     showDevices = true
-                } label: {
-                    Image(systemName: "list.bullet")
                 }
-                .buttonStyle(.glass)
-                .accessibilityLabel("Choisir l'adaptateur")
 
-                Button {
+                ToolButton(title: "Réglages", systemImage: "gearshape.fill", active: false) {
                     showSettings = true
-                } label: {
-                    Image(systemName: "gearshape.fill")
                 }
-                .buttonStyle(.glass)
-                .accessibilityLabel("Réglages")
             }
-            .controlSize(.large)
         }
         .padding(.bottom, 6)
+    }
+
+    @ViewBuilder
+    private var primaryButton: some View {
+        if store.isStandby {
+            HStack(spacing: 10) {
+                Button {
+                    store.wake()
+                } label: {
+                    Label("Relancer", systemImage: "arrow.clockwise").frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.glassProminent)
+                Button(role: .destructive) {
+                    store.stop()
+                } label: {
+                    Label("Arrêter", systemImage: "stop.fill").frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.glass)
+            }
+        } else if store.source == .adapter {
+            Button(role: .destructive) {
+                store.stop()
+            } label: {
+                Label(store.isConnected ? "Déconnecter" : "Annuler la connexion", systemImage: "stop.fill")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.glass)
+        } else {
+            Button {
+                store.start(.adapter)
+            } label: {
+                Label("Connecter à la voiture", systemImage: "car.fill").frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.glassProminent)
+        }
+    }
+}
+
+/// Bouton carré : icône + nom en dessous.
+struct ToolButton: View {
+    let title: String
+    let systemImage: String
+    let active: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            ToolButtonLabel(title: title, systemImage: systemImage, active: active)
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+struct ToolButtonLabel: View {
+    let title: String
+    let systemImage: String
+    let active: Bool
+
+    var body: some View {
+        VStack(spacing: 4) {
+            Image(systemName: systemImage)
+                .font(.system(size: 20, weight: .semibold))
+                .frame(height: 24)
+            Text(title)
+                .font(.caption2.weight(.semibold))
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+        }
+        .foregroundStyle(active ? Color.green : Color.white)
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 10)
+        .background(
+            RoundedRectangle(cornerRadius: 14)
+                .fill(active ? Color.green.opacity(0.15) : Color.white.opacity(0.08))
+        )
+        .contentShape(RoundedRectangle(cornerRadius: 14))
     }
 }

@@ -173,6 +173,7 @@ final class TelemetryStore {
         connection = .idle
         UIApplication.shared.isIdleTimerDisabled = false
         keepAlive.stop()
+        gpsSpeedKmh = nil
         if !keepLiveActivity {
             stopLiveActivity()
             stopNowPlaying()
