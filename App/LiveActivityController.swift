@@ -32,7 +32,7 @@ final class LiveActivityController {
 
         var label: String {
             switch self {
-            case .fast: return "Maximum (gèle après ~5 min)"
+            case .fast: return "Maximum (sans limite)"
             case .balanced: return "Équilibré (conseillé)"
             case .eco: return "Économe"
             }
@@ -60,6 +60,14 @@ final class LiveActivityController {
     }
     private var tokens: Double = Pace.balanced.budget?.capacity ?? 0
     private var lastRefill = Date()
+
+    /// Relance périodique : une Live Activity neuve repart avec un budget iOS neuf (constaté : tout relancer
+    /// redonne 4-5 min de temps réel). nil = désactivée.
+    var rotationInterval: TimeInterval? = 240
+    private var activityStart = Date()
+    private var nextRotationAttempt = Date.distantPast
+    /// Événements à noter dans le journal (relance réussie ou refusée).
+    var onEvent: ((String) -> Void)?
 
     /// Compte rendu chaque minute (pour le journal) : envois de la minute écoulée, réserve restante.
     var onMinuteReport: ((Int, Double?) -> Void)?
@@ -107,6 +115,7 @@ final class LiveActivityController {
             Task { await extra.end(nil, dismissalPolicy: .immediate) }
         }
         activity = current
+        activityStart = Date()
         return true
     }
 
@@ -117,13 +126,37 @@ final class LiveActivityController {
         }
         let content = ActivityContent(state: state, staleDate: Date().addingTimeInterval(30))
         activity = try Activity.request(attributes: attributes, content: content, pushType: nil)
+        activityStart = Date()
         lastSent = Date()
+    }
+
+    /// Crée une Live Activity neuve puis ferme l'ancienne, seulement si iOS accepte la nouvelle
+    /// (iOS peut refuser quand l'app est en arrière-plan : l'ancienne continue alors, rien ne disparaît).
+    private func rotateIfNeeded(with state: TelemetryAttributes.ContentState) {
+        guard let rotationInterval, let current = activity,
+              Date().timeIntervalSince(activityStart) >= rotationInterval,
+              Date() >= nextRotationAttempt else { return }
+        do {
+            let content = ActivityContent(state: state, staleDate: Date().addingTimeInterval(max(20, heartbeat * 4)))
+            let fresh = try Activity.request(attributes: current.attributes, content: content, pushType: nil)
+            activity = fresh
+            activityStart = Date()
+            lastSent = Date()
+            lastSentState = state
+            sentTimes.append(lastSent)
+            Task { await current.end(nil, dismissalPolicy: .immediate) }
+            onEvent?("Live Activity relancée (budget iOS neuf)")
+        } catch {
+            nextRotationAttempt = Date().addingTimeInterval(30)
+            onEvent?("Relance de la Live Activity refusée par iOS : \(error.localizedDescription)")
+        }
     }
 
     /// Transmet le dernier état. Part si le changement est assez important pour la réserve restante
     /// (au plus une fois par `minInterval`), ou toutes les `heartbeat` secondes si rien ne bouge.
     func submit(_ state: TelemetryAttributes.ContentState) {
         guard activity != nil else { return }
+        rotateIfNeeded(with: state)
         latest = state
         refill()
         reportIfNeeded()

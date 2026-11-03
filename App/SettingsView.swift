@@ -47,7 +47,13 @@ struct SettingsView: View {
                         Text("2 s").tag(2.0)
                         Text("5 s").tag(5.0)
                     }
-                    Picker("Rythme CarPlay", selection: $store.settings.liveActivityPace) {
+                    Picker("Relance automatique", selection: $store.settings.liveActivityRotationMinutes) {
+                        Text("Jamais").tag(0.0)
+                        Text("Toutes les 3 min").tag(3.0)
+                        Text("Toutes les 4 min").tag(4.0)
+                        Text("Toutes les 5 min").tag(5.0)
+                    }
+                    Picker("Rythme CarPlay", selection: $store.settings.carPlayPace) {
                         ForEach(LiveActivityController.Pace.allCases, id: \.rawValue) { pace in
                             Text(pace.label).tag(pace.rawValue)
                         }
@@ -59,7 +65,7 @@ struct SettingsView: View {
                 } header: {
                     Text("CarPlay (Live Activity)")
                 } footer: {
-                    Text("Dans CarPlay, les jauges apparaissent sur le Dashboard (écran partagé carte + infos). iOS limite le rythme des mises à jour : quand l'écran de l'iPhone est éteint, il finit par ne les afficher que toutes les 5 à 15 s (allume l'écran verrouillé pour revenir au temps réel). Pour ne jamais l'épuiser, l'app tient une réserve : pleine, elle envoie chaque changement visible au rythme choisi ; quand elle baisse, seuls les gros changements partent (coup de turbo, pic, montée de puissance). « Équilibré » vise à ne jamais geler ; « Maximum » est plus rapide au début mais gèle après quelques minutes. Après chaque pic, les max (pastille MAX) restent affichés pendant la durée choisie dans « Véhicule » : 10 s conseillé pour CarPlay. Les jauges de l'iPhone, elles, sont en temps réel.")
+                    Text("Dans CarPlay, les jauges apparaissent sur le Dashboard (écran partagé carte + infos). iOS limite le rythme des mises à jour : quand l'écran de l'iPhone est éteint, il finit par ne les afficher que toutes les 5 à 15 s (allume l'écran verrouillé pour revenir au temps réel). La relance automatique crée une Live Activity neuve (budget iOS neuf) avant l'épuisement ; si iOS la refuse, l'ancienne continue (voir le journal). « Rythme CarPlay » : « Maximum » envoie tout ; « Équilibré » et « Économe » ménagent le budget en ne gardant que les gros changements quand il baisse. Après chaque pic, les max (pastille MAX) restent affichés pendant la durée choisie dans « Véhicule » : 10 s conseillé pour CarPlay. Les jauges de l'iPhone, elles, sont en temps réel.")
                 }
 
                 if let expiry = ExpirationReminder.expirationDate {

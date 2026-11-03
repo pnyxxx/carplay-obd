@@ -29,7 +29,8 @@ final class TelemetryStore {
         didSet {
             settings.save()
             liveActivity.minInterval = settings.liveActivityInterval
-            liveActivity.budget = LiveActivityController.Pace(rawValue: settings.liveActivityPace)?.budget
+            liveActivity.budget = LiveActivityController.Pace(rawValue: settings.carPlayPace)?.budget
+            liveActivity.rotationInterval = settings.liveActivityRotationMinutes > 0 ? settings.liveActivityRotationMinutes * 60 : nil
             if settings.keepAliveWithGPS != oldValue.keepAliveWithGPS { updateKeepAlive() }
         }
     }
@@ -155,7 +156,9 @@ final class TelemetryStore {
 
     private init() {
         liveActivity.minInterval = settings.liveActivityInterval
-        liveActivity.budget = LiveActivityController.Pace(rawValue: settings.liveActivityPace)?.budget
+        liveActivity.budget = LiveActivityController.Pace(rawValue: settings.carPlayPace)?.budget
+        liveActivity.rotationInterval = settings.liveActivityRotationMinutes > 0 ? settings.liveActivityRotationMinutes * 60 : nil
+        liveActivity.onEvent = { [weak self] text in self?.log(.info, text) }
         liveActivity.onMinuteReport = { [weak self] count, reserve in
             let reserveText = reserve.map { "réserve \(Int($0 * 100)) %" } ?? "sans réserve"
             self?.log(.info, "CarPlay : \(count) mises à jour la dernière minute, \(reserveText)")
