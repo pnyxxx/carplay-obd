@@ -132,6 +132,9 @@ struct SmallTelemetryView: View {
                 HStack(spacing: 8) {
                     Label(Format.temp(state.coolantC), systemImage: "thermometer.medium")
                         .foregroundStyle(GaugePalette.coolant(state.coolantC))
+                    if let power = state.powerCh {
+                        Text("\(Format.power(power)) ch").foregroundStyle(Color.cyan)
+                    }
                     if let peak = state.peakBoostBar {
                         PeakBadge(value: peak)
                     }
@@ -189,6 +192,9 @@ struct LockScreenTelemetryView: View {
                         .foregroundStyle(GaugePalette.coolant(state.coolantC))
                     Label(Format.temp(state.intakeAirC), systemImage: "wind")
                         .foregroundStyle(Color.white.opacity(0.8))
+                    if let power = state.powerCh {
+                        Text("\(Format.power(power)) ch").foregroundStyle(Color.cyan)
+                    }
                     Spacer()
                     if let peak = state.peakBoostBar {
                         PeakBadge(value: peak, font: .subheadline.weight(.heavy))

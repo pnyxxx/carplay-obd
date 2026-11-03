@@ -92,6 +92,11 @@ final class DecoderTests: XCTestCase {
         XCTAssertEqual(readings, [Reading(.intakePressureKPa, 224.5), Reading(.boostTargetKPa, 230)])
     }
 
+    func testTorquePIDs() {
+        XCTAssertEqual(PIDTable.decode(pid: 0x62, data: [0xC8]), [Reading(.actualTorquePct, 75)])
+        XCTAssertEqual(PIDTable.decode(pid: 0x63, data: [0x01, 0x90]), [Reading(.referenceTorqueNm, 400)])
+    }
+
     func testPID87() {
         XCTAssertEqual(PIDTable.decode(pid: 0x87, data: [0x01, 0x20, 0x00, 0, 0]), [Reading(.intakePressureKPa, 256)])
     }
@@ -147,6 +152,8 @@ final class SessionTests: XCTestCase {
         XCTAssertEqual(info.initialBaroKPa, 101)
         XCTAssertNotNil(info.stnIdentity)
         XCTAssertTrue(info.supportedPIDs.isSuperset(of: [0x05, 0x0B, 0x0C, 0x33, 0x70]))
+        XCTAssertEqual(info.referenceTorqueNm, 400)
+        XCTAssertEqual(info.powerPID, 0x62)
 
         let task = Task { try await session.run() }
         try await Task.sleep(for: .milliseconds(1300))
@@ -154,7 +161,7 @@ final class SessionTests: XCTestCase {
         _ = try? await task.value
 
         let channels = Set(collector.readings.map(\.channel))
-        XCTAssertTrue(channels.isSuperset(of: [.rpm, .intakePressureKPa, .boostTargetKPa, .coolantC, .intakeAirC, .speedKmh]), "\(channels)")
+        XCTAssertTrue(channels.isSuperset(of: [.rpm, .intakePressureKPa, .boostTargetKPa, .coolantC, .intakeAirC, .speedKmh, .actualTorquePct]), "\(channels)")
         XCTAssertGreaterThan(collector.stats.last?.fastUpdatesPerSecond ?? 0, 20)
         XCTAssertTrue(collector.readings.filter { $0.channel == .rpm }.allSatisfy { $0.value > 500 && $0.value < 5000 })
     }
@@ -183,6 +190,8 @@ final class SessionTests: XCTestCase {
         let session = ELMSession(transport: SimulatedELM(car: SimulatedCar(supportsPID70: false), latency: .milliseconds(2))) { _ in }
         let info = try await session.initialize()
         XCTAssertEqual(info.boostSource, .pid0B)
+        // Sans PID 0x62/0x63 : estimation par la charge moteur.
+        XCTAssertEqual(info.powerPID, 0x04)
     }
 
     func testWithoutOptimisations() async throws {

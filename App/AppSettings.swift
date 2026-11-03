@@ -9,6 +9,12 @@ struct AppSettings: Codable, Equatable {
     var redlineRPM: Double = 4500
     /// Durée d'affichage du max de turbo après le pic (s).
     var peakHoldSeconds: Double = 5
+    /// Puissance et couple max du moteur (320d reprogrammée ≈ 220 ch ; d'origine 177 ch / 350 Nm).
+    /// Servent d'échelle, et d'estimation si le calculateur ne donne pas son couple réel.
+    var maxPowerCh: Double = 220
+    var maxTorqueNm: Double = 430
+    /// Correction de la puissance lue (une reprogrammation ne met pas toujours à jour le couple déclaré).
+    var powerCorrection: Double = 1.0
 
     // CarPlay / Live Activity
     var autoStartLiveActivity = true

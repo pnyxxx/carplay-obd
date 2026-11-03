@@ -28,7 +28,7 @@ struct DashboardView: View {
                 } else {
                     VStack(spacing: 12) {
                         StatusBar()
-                        BoostPanel(maxGaugeSide: min(geo.size.width * 0.78, geo.size.height * 0.34))
+                        BoostPanel(maxGaugeSide: min(geo.size.width * 0.74, geo.size.height * 0.31))
                         RPMPanel()
                         TemperatureRow()
                         Spacer(minLength: 0)
@@ -187,7 +187,7 @@ struct RPMPanel: View {
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 if let rpm = store.rpm {
                     Text(Format.rpm(rpm))
-                        .font(.system(size: 44, weight: .heavy, design: .rounded).monospacedDigit())
+                        .font(.system(size: 42, weight: .heavy, design: .rounded).monospacedDigit())
                         .foregroundStyle(GaugePalette.rpm(rpm, redline: store.settings.redlineRPM))
                 } else {
                     Text("—")
@@ -196,14 +196,34 @@ struct RPMPanel: View {
                 }
                 Text("tr/min").font(.callout).foregroundStyle(.secondary)
                 Spacer()
-                if store.isRunning, let speed = store.speedKmh ?? store.gpsSpeedKmh {
-                    Text("\(Int(speed.rounded()))")
-                        .font(.system(size: 30, weight: .bold, design: .rounded).monospacedDigit())
-                    Text("km/h").font(.callout).foregroundStyle(.secondary)
+                // Puissance, comme sur les écrans « performance » des voitures.
+                if let power = store.powerCh {
+                    Text(Format.power(power))
+                        .font(.system(size: 36, weight: .heavy, design: .rounded).monospacedDigit())
+                        .foregroundStyle(.cyan)
+                    Text(store.powerFromECU ? "ch" : "ch ≈").font(.callout).foregroundStyle(.secondary)
                 }
             }
-            RPMBar(rpm: store.rpm, rpmMax: store.settings.rpmMax, redline: store.settings.redlineRPM, height: 16)
+            RPMBar(rpm: store.rpm, rpmMax: store.settings.rpmMax, redline: store.settings.redlineRPM, height: 14)
                 .animation(.linear(duration: 0.08), value: store.rpm ?? 0)
+            if store.powerCh != nil {
+                PowerBar(power: store.powerCh, peak: store.displayedPeakPowerCh, maxPower: store.settings.maxPowerCh, height: 8)
+                    .animation(.linear(duration: 0.08), value: store.powerCh ?? 0)
+            }
+            HStack(spacing: 14) {
+                if let torque = store.torqueNm {
+                    Text("\(Int(torque.rounded())) Nm")
+                }
+                if store.isRunning, let speed = store.speedKmh ?? store.gpsSpeedKmh {
+                    Text("\(Int(speed.rounded())) km/h")
+                }
+                Spacer()
+                if let peak = store.displayedPeakPowerCh {
+                    PeakBadge(text: "MAX \(Format.power(peak)) ch")
+                }
+            }
+            .font(.subheadline.monospacedDigit().weight(.semibold))
+            .foregroundStyle(.secondary)
         }
         .padding(14)
         .background(

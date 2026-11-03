@@ -19,15 +19,24 @@ struct SettingsView: View {
                     Stepper(value: $store.settings.redlineRPM, in: 2000...9000, step: 250) {
                         LabeledContent("Zone rouge", value: "\(Int(store.settings.redlineRPM)) tr/min")
                     }
-                    Picker("Maintien du max turbo", selection: $store.settings.peakHoldSeconds) {
+                    Picker("Maintien des max", selection: $store.settings.peakHoldSeconds) {
                         Text("3 s").tag(3.0)
                         Text("5 s").tag(5.0)
                         Text("10 s").tag(10.0)
                     }
+                    Stepper(value: $store.settings.maxPowerCh, in: 80...500, step: 5) {
+                        LabeledContent("Puissance max", value: "\(Int(store.settings.maxPowerCh)) ch")
+                    }
+                    Stepper(value: $store.settings.maxTorqueNm, in: 150...900, step: 10) {
+                        LabeledContent("Couple max", value: "\(Int(store.settings.maxTorqueNm)) Nm")
+                    }
+                    Stepper(value: $store.settings.powerCorrection, in: 0.7...1.5, step: 0.01) {
+                        LabeledContent("Correction puissance", value: String(format: "× %.2f", store.settings.powerCorrection))
+                    }
                 } header: {
                     Text("Véhicule")
                 } footer: {
-                    Text("Valeurs par défaut prévues pour une BMW 320d E90. L'échelle de la Live Activity est fixée à son démarrage.")
+                    Text("Réglé pour ta 320d reprogrammée (220 ch). Si le calculateur donne son couple réel, la puissance en découle (couple × régime) ; sinon elle est estimée (« ch ≈ ») avec la puissance et le couple max. Correction : si une pleine accélération affiche 185 ch au lieu de 220, règle × 1,19. L'échelle de la Live Activity est fixée à son démarrage.")
                 }
 
                 Section {
@@ -43,6 +52,17 @@ struct SettingsView: View {
                     Text("CarPlay (Live Activity)")
                 } footer: {
                     Text("Dans CarPlay, les jauges apparaissent sur le Dashboard (écran partagé carte + infos). iOS limite le rythme des mises à jour : après chaque pic, le max de turbo reste affiché (pastille MAX) pendant la durée choisie dans « Véhicule ». Les jauges de l'iPhone, elles, sont en temps réel.")
+                }
+
+                if let expiry = ExpirationReminder.expirationDate {
+                    Section {
+                        LabeledContent("Valable jusqu'au", value: expiry.formatted(.dateTime.weekday(.wide).day().month().hour().minute()))
+                            .foregroundStyle(expiry.timeIntervalSinceNow < 86_400 ? Color.orange : Color.primary)
+                    } header: {
+                        Text("Installation")
+                    } footer: {
+                        Text("Compte Apple gratuit : l'app doit être réinstallée avec iloader avant cette date. Une notification te prévient 2 jours avant, la veille et 3 heures avant.")
+                    }
                 }
 
                 Section {
@@ -183,6 +203,7 @@ struct DiagnosticsView: View {
                     LabeledContent("Calculateur moteur", value: info.engineECU ?? "–")
                     LabeledContent("Calculateurs", value: info.respondingECUs.joined(separator: ", "))
                     LabeledContent("Source turbo", value: info.boostSource?.label ?? "aucune")
+                    LabeledContent("Puissance", value: info.powerPID == 0x62 ? "couple du calculateur (0x62 × \(Int(info.referenceTorqueNm ?? 0)) Nm)" : info.powerPID == 0x04 ? "estimée (charge moteur)" : "indisponible")
                     if let maxMAP = info.maxMAPKPa {
                         LabeledContent("MAP max annoncé (0x4F)", value: String(format: "%.0f kPa", maxMAP))
                     }

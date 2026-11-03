@@ -50,6 +50,11 @@ enum Format {
         return String(Int(rpm.rounded()))
     }
 
+    static func power(_ ch: Double?) -> String {
+        guard let ch else { return "—" }
+        return String(Int(max(0, ch).rounded()))
+    }
+
     static func temp(_ celsius: Double?) -> String {
         guard let celsius else { return "—" }
         return "\(Int(celsius.rounded()))°"
@@ -124,17 +129,57 @@ struct ArcGauge: View {
 
 /// Pastille du max de turbo maintenu (quelques secondes après le pic).
 struct PeakBadge: View {
-    let value: Double
+    let text: String
     var font: Font = .caption.weight(.heavy)
 
+    init(value: Double, font: Font = .caption.weight(.heavy)) {
+        self.text = "MAX \(Format.boost(value))"
+        self.font = font
+    }
+
+    init(text: String, font: Font = .caption.weight(.heavy)) {
+        self.text = text
+        self.font = font
+    }
+
     var body: some View {
-        Text("MAX \(Format.boost(value))")
+        Text(text)
             .font(font.monospacedDigit())
             .lineLimit(1)
             .padding(.horizontal, 7)
             .padding(.vertical, 2)
             .background(Color.orange, in: Capsule())
             .foregroundStyle(.black)
+    }
+}
+
+/// Barre de puissance (dégradé), avec repère du max maintenu.
+struct PowerBar: View {
+    var power: Double?
+    var peak: Double?
+    var maxPower: Double
+    var height: CGFloat = 8
+
+    var body: some View {
+        GeometryReader { geo in
+            let scale = max(maxPower, 1)
+            let fraction = min(max((power ?? 0) / scale, 0), 1)
+            ZStack(alignment: .leading) {
+                Capsule().fill(Color.gray.opacity(0.3))
+                Capsule()
+                    .fill(LinearGradient(colors: [.cyan, .green, .orange], startPoint: .leading, endPoint: .trailing))
+                    .frame(width: max(height, geo.size.width * fraction))
+                    .opacity(power == nil ? 0 : 1)
+                if let peak {
+                    Rectangle()
+                        .fill(Color.white)
+                        .frame(width: 3)
+                        .offset(x: geo.size.width * min(max(peak / scale, 0), 1) - 1.5)
+                }
+            }
+            .clipShape(Capsule())
+        }
+        .frame(height: height)
     }
 }
 

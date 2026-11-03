@@ -10,6 +10,8 @@ public struct SimulatedCar: Sendable {
         public var intakeAirC: Double
         public var speedKmh: Double
         public var throttlePct: Double
+        /// Couple réel en % du couple de référence (400 Nm).
+        public var torquePct: Double
     }
 
     public var baroKPa: Double = 101
@@ -57,7 +59,8 @@ public struct SimulatedCar: Sendable {
             coolantC: 62 + 28 * min(1, t / 90),
             intakeAirC: 27 + boost / 12,
             speedKmh: rpm / gearFactor,
-            throttlePct: throttle
+            throttlePct: throttle,
+            torquePct: throttle > 50 ? min(88, 45 + boost / 4) * (rpm > 3200 ? 1 - (rpm - 3200) / 4000 : 1) : throttle * 0.4
         )
     }
 
@@ -73,7 +76,7 @@ public struct SimulatedCar: Sendable {
 
     var engineSupported: Set<UInt8> {
         var set: Set<UInt8> = [0x01, 0x04, 0x05, 0x0B, 0x0C, 0x0D, 0x0F, 0x11, 0x1C, 0x20, 0x21, 0x33, 0x40, 0x42]
-        if supportsPID70 { set.formUnion([0x60, 0x70]) }
+        if supportsPID70 { set.formUnion([0x60, 0x62, 0x63, 0x70]) }
         return set
     }
 
@@ -102,6 +105,8 @@ public struct SimulatedCar: Sendable {
         case 0x21: return [0, 0]
         case 0x33: return [byte(baroKPa)]
         case 0x42: return word(13800)
+        case 0x62: return [byte(s.torquePct + 125)]
+        case 0x63: return word(400)
         case 0x70:
             return [0x03] + word((baroKPa + s.boostTargetKPa) * 32) + word((baroKPa + s.boostKPa) * 32) + [0, 0, 0, 0, 0]
         default: return nil

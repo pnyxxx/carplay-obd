@@ -54,6 +54,13 @@ final class TelemetryStore {
     private(set) var speedKmh: Double?
     private(set) var gpsSpeedKmh: Double?
     private(set) var batteryV: Double?
+    private(set) var engineLoadPct: Double?
+    private(set) var actualTorquePct: Double?
+    private(set) var referenceTorqueNm: Double?
+    /// Puissance max de la session et max maintenu (comme pour le turbo).
+    private(set) var peakPowerCh: Double?
+    private(set) var heldPeakPowerCh: Double?
+    @ObservationIgnored private var heldPeakPowerTime: TimeInterval = 0
     /// Pic de la session (remis à zéro à la main).
     private(set) var peakBoostBar: Double?
     /// Max maintenu : le plus haut turbo des dernières secondes (voir `peakHoldSeconds`).
@@ -71,6 +78,41 @@ final class TelemetryStore {
     var displayedPeakBar: Double? {
         guard let held = heldPeakBar, let boost = boostBar, held >= 0.2, held - boost >= 0.08 else { return nil }
         return held
+    }
+
+    // MARK: Puissance
+
+    /// Vrai si le calculateur fournit son couple réel (PID 0x62 + 0x63) ; sinon estimation par la charge.
+    var powerFromECU: Bool { actualTorquePct != nil && referenceTorqueNm != nil }
+
+    /// Couple moteur (Nm) : celui du calculateur, ou charge moteur × courbe de couple max.
+    var torqueNm: Double? {
+        if let pct = actualTorquePct, let reference = referenceTorqueNm {
+            return max(0, pct) / 100 * reference * settings.powerCorrection
+        }
+        if let load = engineLoadPct, let rpm, rpm > 400 {
+            return load / 100 * maxTorque(atRPM: rpm)
+        }
+        return nil
+    }
+
+    /// Puissance (ch) = couple × régime, comme sur les écrans des voitures.
+    var powerCh: Double? {
+        guard let torque = torqueNm, let rpm else { return nil }
+        return torque * rpm * 2 * .pi / 60 / 1000 * 1.35962
+    }
+
+    var displayedPeakPowerCh: Double? {
+        guard let held = heldPeakPowerCh, let power = powerCh, held >= 30, held - power >= 5 else { return nil }
+        return held
+    }
+
+    /// Courbe de couple max d'un diesel turbo : montée jusqu'à 1750 tr/min, plateau, puis puissance max.
+    private func maxTorque(atRPM rpm: Double) -> Double {
+        let peak = settings.maxTorqueNm
+        let ramp = rpm < 1750 ? peak * (0.45 + 0.55 * max(0, rpm - 1000) / 750) : peak
+        let atMaxPower = settings.maxPowerCh / 1.35962 * 1000 / (rpm * 2 * .pi / 60)
+        return min(ramp, atMaxPower)
     }
 
     var boostTargetBar: Double? {
@@ -126,6 +168,7 @@ final class TelemetryStore {
     func bootstrap() {
         guard !bootstrapped else { return }
         bootstrapped = true
+        Task { await ExpirationReminder.schedule() }
         if liveActivity.adoptExisting() { liveActivityActive = true }
         if settings.autoConnect && settings.savedAdapterID != nil {
             start(.adapter)
@@ -206,6 +249,7 @@ final class TelemetryStore {
 
     func resetPeak() {
         peakBoostBar = nil
+        peakPowerCh = nil
     }
 
     private func updateKeepAlive() {
@@ -335,6 +379,7 @@ final class TelemetryStore {
         let info = try await session.initialize()
         adapterInfo = info
         if let baro = info.initialBaroKPa { baroKPa = baro }
+        referenceTorqueNm = info.referenceTorqueNm
         connection = .running
         reachedRunning = true
 
@@ -387,7 +432,10 @@ final class TelemetryStore {
             case .oilC: oilC = reading.value
             case .speedKmh: speedKmh = reading.value
             case .batteryV: batteryV = reading.value
-            case .throttlePct, .engineLoadPct, .maxMAPKPa: break
+            case .engineLoadPct: engineLoadPct = reading.value
+            case .actualTorquePct: actualTorquePct = reading.value
+            case .referenceTorqueNm: referenceTorqueNm = reading.value
+            case .throttlePct, .maxMAPKPa: break
             }
         }
 
@@ -409,6 +457,16 @@ final class TelemetryStore {
             boostHistory.append(BoostSample(time: now, bar: boost))
             if let first = boostHistory.first, now - first.time > 20 {
                 boostHistory.removeAll { now - $0.time > 20 }
+            }
+        }
+        if let power = powerCh {
+            let now = ProcessInfo.processInfo.systemUptime
+            peakPowerCh = max(peakPowerCh ?? power, power)
+            if let held = heldPeakPowerCh, power < held, now - heldPeakPowerTime < settings.peakHoldSeconds {
+                // max maintenu
+            } else {
+                heldPeakPowerCh = power
+                heldPeakPowerTime = now
             }
         }
         pushLiveActivity()
@@ -442,7 +500,8 @@ final class TelemetryStore {
         let attributes = TelemetryAttributes(
             boostMaxBar: settings.boostMaxBar,
             rpmMax: settings.rpmMax,
-            redlineRPM: settings.redlineRPM
+            redlineRPM: settings.redlineRPM,
+            maxPowerCh: settings.maxPowerCh
         )
         do {
             try liveActivity.start(attributes: attributes, state: currentActivityState())
@@ -481,6 +540,7 @@ final class TelemetryStore {
             rpm: rpm,
             coolantC: coolantC,
             intakeAirC: intakeAirC,
+            powerCh: powerCh,
             connected: isRunningState,
             statusText: status
         )
@@ -535,6 +595,7 @@ final class TelemetryStore {
     private func resetValues() {
         rpm = nil; intakeKPa = nil; boostTargetKPa = nil; baroKPa = nil
         coolantC = nil; intakeAirC = nil; oilC = nil; speedKmh = nil; batteryV = nil
+        engineLoadPct = nil; actualTorquePct = nil; referenceTorqueNm = nil; peakPowerCh = nil; heldPeakPowerCh = nil
         peakBoostBar = nil; heldPeakBar = nil; boostHistory = []; estimatedBaroKPa = nil
         adapterInfo = nil; stats = PollStats()
     }

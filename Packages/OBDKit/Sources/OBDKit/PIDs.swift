@@ -13,6 +13,8 @@ public enum Channel: String, Sendable, Codable, CaseIterable {
     case throttlePct          // position papillon / pédale (%)
     case engineLoadPct        // charge moteur calculée (%)
     case batteryV             // tension mesurée par l'adaptateur (V)
+    case actualTorquePct      // couple moteur réel, en % du couple de référence (PID 0x62)
+    case referenceTorqueNm    // couple de référence du moteur (PID 0x63, Nm)
     case maxMAPKPa            // échelle max du capteur MAP annoncée par le PID 0x4F (kPa)
 }
 
@@ -59,8 +61,8 @@ public enum PIDTable {
     public static func dataLength(_ pid: UInt8) -> Int? {
         switch pid {
         case 0x00, 0x20, 0x40, 0x60, 0x80, 0xA0, 0xC0, 0xE0: return 4  // bitmaps « PID supportés »
-        case 0x04, 0x05, 0x0B, 0x0D, 0x0F, 0x11, 0x33, 0x5C: return 1
-        case 0x0C: return 2
+        case 0x04, 0x05, 0x0B, 0x0D, 0x0F, 0x11, 0x33, 0x5C, 0x61, 0x62: return 1
+        case 0x0C, 0x63: return 2
         case 0x4F: return 4
         case 0x70: return 10
         case 0x87: return 5
@@ -80,6 +82,9 @@ public enum PIDTable {
         case 0x33: return "Pression atmosphérique"
         case 0x4F: return "Valeurs max (MAP…)"
         case 0x5C: return "Température d'huile"
+        case 0x61: return "Couple demandé (%)"
+        case 0x62: return "Couple réel (%)"
+        case 0x63: return "Couple de référence"
         case 0x70: return "Contrôle suralimentation"
         case 0x87: return "MAP étendu"
         default: return String(format: "PID 0x%02X", pid)
@@ -103,6 +108,10 @@ public enum PIDTable {
             let maxMAP = Double(d[3]) * 10
             return maxMAP > 0 ? [Reading(.maxMAPKPa, maxMAP)] : []
         case 0x5C: return [Reading(.oilC, a - 40)]
+        case 0x62: return [Reading(.actualTorquePct, a - 125)]
+        case 0x63:
+            let reference = word(d[0], d[1])
+            return reference > 0 ? [Reading(.referenceTorqueNm, reference)] : []
         case 0x70:
             // A = bits de support : b0 consigne A, b1 capteur A, b2 consigne B, b3 capteur B.
             // B-C = consigne A, D-E = capteur A (1/32 kPa).

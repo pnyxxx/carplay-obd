@@ -40,6 +40,10 @@ public struct AdapterInfo: Sendable, Equatable {
     public var aggressiveTiming = false
     public var maxMAPKPa: Double?
     public var initialBaroKPa: Double?
+    /// Couple de référence annoncé par le calculateur (PID 0x63) : avec le PID 0x62, donne le couple réel.
+    public var referenceTorqueNm: Double?
+    /// PID lu à chaque cycle pour la puissance : 0x62 (couple réel) ou 0x04 (charge moteur, estimation).
+    public var powerPID: UInt8?
 
     public init() {}
 }
@@ -261,6 +265,16 @@ public actor ELMSession {
             let response = try await query("014F")
             info.maxMAPKPa = decode(response).first(where: { $0.channel == .maxMAPKPa })?.value
         }
+        if info.supportedPIDs.contains(0x63) {
+            let response = try await query("0163")
+            info.referenceTorqueNm = decode(response).first(where: { $0.channel == .referenceTorqueNm })?.value
+        }
+        // Puissance : couple réel du calculateur si possible, sinon charge moteur (estimation côté app).
+        if info.referenceTorqueNm != nil && info.supportedPIDs.contains(0x62) {
+            info.powerPID = 0x62
+        } else if info.supportedPIDs.contains(0x04) {
+            info.powerPID = 0x04
+        }
 
         buildPlan()
         try await probeOptimisations()
@@ -285,6 +299,7 @@ public actor ELMSession {
         var fast: [UInt8] = []
         if let boost = info.boostSource { fast.append(boost.pid) }
         fast.append(0x0C)
+        if let power = info.powerPID { fast.append(power) }
         fastPIDs = fast
         slowPIDs = [0x05, 0x0F, 0x0D, 0x5C].filter { info.supportedPIDs.contains($0) }
         let now = ContinuousClock.now
