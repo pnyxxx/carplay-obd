@@ -9,9 +9,14 @@ Recherche faite avant de coder, à partir des documents officiels d'Apple (guide
 | **App iPhone** sur support (jauges plein écran) | Oui, 60 images/s, autant de mesures que l'OBD en donne | Aucune | ✅ Fait : c'est l'affichage « course » |
 | **Live Activity dans CarPlay** (Dashboard, iOS 26+) | Quasi : iOS limite le rythme (budget non publié) | **Aucune** (« Your app does not need to be a CarPlay app ») | ✅ Fait : c'est l'affichage CarPlay |
 | **Widget dans CarPlay** (iOS 26+, `systemSmall`) | Non : 40 à 70 rafraîchissements par jour (sauf quand l'app est au premier plan) | Aucune | 🔜 Plus tard, pour un résumé de session (pic de turbo, temp. max…) |
-| **App CarPlay « driving task »** (listes, grilles…) | Interdit : règle n° 4, « no real-time engine data », 1 rafraîchissement / 10 s max | Droit CarPlay accordé par Apple | ❌ Apple refuserait ; inutilisable pour des jauges |
+| **Écran « À l'écoute » de CarPlay** (astuce : lecteur audio silencieux, pochette = image des jauges) | À mesurer : rythme de rafraîchissement de la pochette non documenté | **Aucune** : CarPlay affiche le lecteur de n'importe quelle app audio | 🧪 Fait, en expérimental (coupe la musique) |
+| **App CarPlay « driving task »** (listes, grilles…) | Règle n° 4 d'Apple : « no real-time engine data », 1 rafraîchissement / 10 s. Ignorée dans notre code (5 / s), car les versions de test ne sont pas relues par Apple | Droit CarPlay **inscrit dans la signature**, vérifié par l'iPhone ; accordé par Apple à un compte payant | 🔒 Code prêt, inactif tant que le droit n'est pas accordé |
 | **App CarPlay « navigation »** (dessin libre sur la carte) | Oui | Réservé aux vraies apps de navigation GPS | ❌ Impossible à obtenir |
 | **App sur l'écran de la voiture** (boîtier AliExpress) | — | — | ❌ Boîtier Linux fermé, rien à installer (un boîtier Android l'aurait permis) |
+
+### Pourquoi on ne peut pas « juste ignorer » Apple pour l'app CarPlay
+
+Les règles d'utilisation (pas de données en temps réel, etc.) ne sont vérifiées qu'à la validation App Store, donc on peut les ignorer pour un usage privé. En revanche, le **droit CarPlay** fait partie de la signature de l'app. L'iPhone n'accepte que les droits listés dans le profil de signature, et Apple n'ajoute le droit CarPlay qu'après une demande acceptée, sur un compte payant (guide CarPlay p. 13 : *« Xcode and Simulator require a Provisioning Profile that supports CarPlay »*). Avec un compte gratuit, il n'existe pas de moyen légitime d'afficher une icône d'app dans CarPlay. D'où l'écran « À l'écoute », qui n'a besoin d'aucun droit : selon Apple (WWDC18), CarPlay y affiche le titre et la pochette publiés via `MPNowPlayingInfoCenter` par l'app qui joue du son.
 
 ### Pourquoi la Live Activity est la bonne porte d'entrée
 
@@ -78,6 +83,9 @@ Apple ne publie pas de chiffre pour les mises à jour locales (`Activity.update`
 - WWDC25 « Turbocharge your app for CarPlay » : https://developer.apple.com/videos/play/wwdc2025/216/
 - WWDC26 « Live Activities essentials » : https://developer.apple.com/videos/play/wwdc2026/223/
 - WWDC26 « Rev up your CarPlay app » : https://developer.apple.com/videos/play/wwdc2026/212/
+- WWDC18 « CarPlay Audio and Navigation Apps » (MPNowPlayingInfoCenter dans l'écran À l'écoute) : https://developer.apple.com/videos/play/wwdc2018/213/
+- Écran À l'écoute de CarPlay alimenté sans droit CarPlay (retour d'expérience) : https://github.com/kpopper/surface-noise-player/pull/47
+- Droits obligatoirement présents dans le profil : https://developer.apple.com/forums/thread/678108
 - Forum Apple, limitation des mises à jour de Live Activity : https://developer.apple.com/forums/thread/748569
 - PID OBD-II (formules, bitmaps) : https://en.wikipedia.org/wiki/OBD-II_PIDs
 - ELM327, nombre de réponses et requêtes multi-PID : https://www.scantool.net/scantool/downloads/103/elm327dsh.pdf et https://github.com/FlappedEar/BetterDriver/pull/261

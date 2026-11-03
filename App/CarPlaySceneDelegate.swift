@@ -52,7 +52,7 @@ final class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegat
     }
 
     func templateApplicationScene(_ templateApplicationScene: CPTemplateApplicationScene,
-                                  didDisconnect interfaceController: CPInterfaceController) {
+                                  didDisconnectInterfaceController interfaceController: CPInterfaceController) {
         refreshTask?.cancel()
         refreshTask = nil
         self.interfaceController = nil
