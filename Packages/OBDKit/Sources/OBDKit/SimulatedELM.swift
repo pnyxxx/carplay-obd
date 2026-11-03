@@ -140,6 +140,10 @@ public final class SimulatedELM: ELMTransport, @unchecked Sendable {
 
     public func send(_ command: String, timeout: Duration) async throws -> String {
         try await Task.sleep(for: latency)
+        return respondLocked(to: command)
+    }
+
+    private func respondLocked(to command: String) -> String {
         lock.lock()
         defer { lock.unlock() }
         return respond(to: command)

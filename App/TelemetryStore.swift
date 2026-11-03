@@ -161,7 +161,7 @@ final class TelemetryStore {
             } catch {
                 if Task.isCancelled { return }
                 attempt += 1
-                let message = (error as? CustomStringConvertible)?.description ?? error.localizedDescription
+                let message = Self.describe(error)
                 log(.error, message)
                 connection = .waiting(message)
                 pushLiveActivity()
@@ -330,6 +330,15 @@ final class TelemetryStore {
             connected: isRunningState,
             statusText: status
         )
+    }
+
+    private static func describe(_ error: Error) -> String {
+        switch error {
+        case let error as SessionError: return error.description
+        case let error as TransportError: return error.description
+        case let error as BLELink.LinkError: return error.description
+        default: return error.localizedDescription
+        }
     }
 
     // MARK: - Journal

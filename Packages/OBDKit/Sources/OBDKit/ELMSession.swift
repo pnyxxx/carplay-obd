@@ -63,6 +63,12 @@ public struct LogEntry: Sendable, Equatable {
     public var date: Date
     public var kind: Kind
     public var text: String
+
+    public init(date: Date, kind: Kind, text: String) {
+        self.date = date
+        self.kind = kind
+        self.text = text
+    }
 }
 
 public enum SessionEvent: Sendable {
