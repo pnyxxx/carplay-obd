@@ -314,7 +314,7 @@ struct StatusBar: View {
                     .font(.caption.monospacedDigit())
                     .foregroundStyle(.secondary)
             }
-            if store.liveActivityActive || store.nowPlayingActive {
+            if store.liveActivityActive {
                 Label("CarPlay", systemImage: "carplay")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.green)
@@ -373,25 +373,9 @@ struct ControlBar: View {
                     if store.source == .demo { store.stop() } else { store.start(.demo) }
                 }
 
-                Menu {
-                    Section("Afficher dans CarPlay") {
-                        Toggle(isOn: Binding(
-                            get: { store.liveActivityActive },
-                            set: { $0 ? store.startLiveActivity() : store.stopLiveActivity() }
-                        )) {
-                            Label("Jauges sur le Dashboard (Live Activity)", systemImage: "rectangle.split.2x1")
-                        }
-                        Toggle(isOn: Binding(
-                            get: { store.nowPlayingActive },
-                            set: { $0 ? store.startNowPlaying() : store.stopNowPlaying() }
-                        )) {
-                            Label("Jauges dans « À l'écoute » (test, coupe la musique)", systemImage: "play.rectangle")
-                        }
-                    }
-                } label: {
-                    ToolButtonLabel(title: "CarPlay", systemImage: "carplay", active: store.liveActivityActive || store.nowPlayingActive)
+                ToolButton(title: "CarPlay", systemImage: "carplay", active: store.liveActivityActive) {
+                    if store.liveActivityActive { store.stopLiveActivity() } else { store.startLiveActivity() }
                 }
-                .buttonStyle(.plain)
 
                 ToolButton(title: "Adaptateur", systemImage: "antenna.radiowaves.left.and.right", active: false) {
                     showDevices = true

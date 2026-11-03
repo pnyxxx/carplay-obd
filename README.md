@@ -3,12 +3,11 @@
 Projet de test pour la piste. On lit le moteur avec un adaptateur **Veepeak OBDCheck BLE+**, puis on affiche :
 
 - **sur l'iPhone** (sur un support) : jauges plein écran **en temps réel**. Aiguille de turbo avec pic et consigne du calculateur, régime façon shift-light, températures d'eau et d'air, courbe de turbo des 20 dernières secondes ;
-- **dans CarPlay**, trois façons :
-  1. **Live Activity** sur le Dashboard (l'écran carte + infos) : cadran de turbo, régime, température d'eau. Elle s'affiche aussi sur l'écran verrouillé et dans la Dynamic Island. Marche avec un compte Apple gratuit.
-  2. **Écran « À l'écoute »** (expérimental) : l'app se présente comme un lecteur audio silencieux, et la « pochette » est une grande image des jauges redessinée en continu. Marche avec un compte gratuit, mais coupe la musique.
-  3. **Vraie app CarPlay** (icône sur l'écran d'accueil CarPlay, liste de jauges rafraîchie 5 fois par seconde). Le code est prêt, mais **iOS ne l'affiche que si la signature contient le droit CarPlay accordé par Apple** (compte payant + demande acceptée, voir plus bas).
+- **dans CarPlay** :
+  1. **Live Activity** sur le Dashboard (l'écran carte + infos) : cadran de turbo, régime, température d'eau, max de turbo maintenu. Elle s'affiche aussi sur l'écran verrouillé et dans la Dynamic Island. Marche avec un compte Apple gratuit.
+  2. **Vraie app CarPlay** (icône sur l'écran d'accueil CarPlay, liste de jauges rafraîchie 5 fois par seconde). Le code est prêt, mais **iOS ne l'affiche que si la signature contient le droit CarPlay accordé par Apple** (compte payant + demande acceptée, voir plus bas).
 
-Véhicule de test : **BMW 320d E90**. L'analyse complète (options CarPlay, limites, sources) est dans [docs/ANALYSE.md](docs/ANALYSE.md).
+Véhicule de test : **BMW 320d E90 phase 2** (CAN). L'analyse complète (options CarPlay, limites, sources) est dans [docs/ANALYSE.md](docs/ANALYSE.md).
 
 > Usage sur circuit uniquement. Ne pas manipuler l'iPhone en roulant.
 
@@ -77,11 +76,9 @@ Avec un compte gratuit, l'app expire au bout de **7 jours** : il suffit de refai
 
 Après chaque pic, le max de turbo reste affiché quelques secondes dans une pastille orange **MAX 1.58**, avec un repère blanc sur l'arc : dans CarPlay, sur l'écran verrouillé et sur l'iPhone. Durée réglable (3, 5 ou 10 s) dans Réglages > Véhicule. Le « Pic session » de l'iPhone garde, lui, le record jusqu'à sa remise à zéro.
 
-### Les trois affichages CarPlay
+### Affichage CarPlay
 
-Le bouton **CarPlay** de l'app ouvre un menu :
-- **Live Activity (Dashboard)** : jauges sur l'écran partagé carte + infos.
-- **Écran « À l'écoute » (expérimental)** : ouvre ensuite l'app **À l'écoute** dans CarPlay pour voir les jauges en grand. Le bouton « suivant » remet le pic de turbo à zéro. Les deux modes peuvent être actifs ensemble ; si la Live Activity se fige pendant que « À l'écoute » est actif, c'est une limite d'iOS (à vérifier).
+Le bouton **CarPlay** de l'app affiche ou retire les jauges du Dashboard CarPlay (Live Activity). Elles s'affichent aussi toutes seules à la connexion (réglable).
 
 **Vraie app CarPlay** : ce n'est pas une règle qu'on peut ignorer dans le code. L'iPhone vérifie lui-même que la signature de l'app contient le droit `com.apple.developer.carplay-driving-task`, sinon il n'affiche pas d'icône dans CarPlay (et refuse même l'installation si le droit est demandé sans être accordé). Pour l'activer un jour :
 1. Prendre le compte Apple Developer payant (99 €/an).
@@ -113,5 +110,4 @@ Ce qui se passe en coulisses :
 - [ ] Source turbo détectée (0x70, 0x87 ou 0x0B) et valeur ≈ 0,0 bar au ralenti
 - [ ] Débit « Turbo + régime / s » dans Diagnostic
 - [ ] Live Activity visible dans CarPlay, et mises à jour par minute réellement obtenues
-- [ ] Écran « À l'écoute » : la pochette de jauges s'affiche-t-elle, et à quelle vitesse change-t-elle ?
 - [ ] Écran verrouillé 10 minutes : la lecture continue-t-elle ?

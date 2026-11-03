@@ -12,9 +12,6 @@ struct StartTelemetryIntent: LiveActivityIntent {
         if store.settings.autoStartLiveActivity && !store.liveActivityActive {
             store.startLiveActivity()
         }
-        if store.settings.autoStartNowPlaying && !store.nowPlayingActive {
-            store.startNowPlaying()
-        }
         // iOS laisse l'app tourner pendant l'exécution du raccourci : on en profite pour
         // aller jusqu'à la connexion avec la voiture (20 s maximum).
         let deadline = Date().addingTimeInterval(20)

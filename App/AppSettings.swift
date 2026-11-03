@@ -14,10 +14,6 @@ struct AppSettings: Codable, Equatable {
     var autoStartLiveActivity = true
     var liveActivityInterval: Double = 1.0
 
-    // CarPlay / écran « À l'écoute » (expérimental, sans droit Apple)
-    var autoStartNowPlaying = false
-    var nowPlayingInterval: Double = 0.5
-
     // Démarrage automatique
     var autoConnect = true
 

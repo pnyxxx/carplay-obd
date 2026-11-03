@@ -54,7 +54,6 @@ targets:
           - UIInterfaceOrientationLandscapeRight
         UIUserInterfaceStyle: Dark
         UIBackgroundModes:
-          - audio
           - bluetooth-central
           - location
         NSBluetoothAlwaysUsageDescription: "TrackData se connecte à l'adaptateur OBD Bluetooth pour lire le turbo, le régime et les températures."

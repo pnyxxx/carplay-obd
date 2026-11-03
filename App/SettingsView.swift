@@ -46,20 +46,6 @@ struct SettingsView: View {
                 }
 
                 Section {
-                    Toggle("Activer automatiquement à la connexion", isOn: $store.settings.autoStartNowPlaying)
-                    Picker("Rafraîchissement", selection: $store.settings.nowPlayingInterval) {
-                        Text("0,25 s").tag(0.25)
-                        Text("0,5 s").tag(0.5)
-                        Text("1 s").tag(1.0)
-                    }
-                    LabeledContent("Pochettes envoyées", value: "\(store.nowPlayingUpdatesPerMinute) / min")
-                } header: {
-                    Text("CarPlay : écran « À l'écoute » (expérimental)")
-                } footer: {
-                    Text("Sans autorisation Apple : l'app joue un son silencieux et se présente comme un morceau de musique. Ouvre « À l'écoute » dans CarPlay pour voir les jauges en grand. Le bouton « suivant » remet le pic de turbo à zéro. Coupe la musique des autres apps.")
-                }
-
-                Section {
                     Toggle("Connexion automatique", isOn: $store.settings.autoConnect)
                     VStack(alignment: .leading, spacing: 6) {
                         Text("Pour que tout démarre seul en montant dans la voiture :").font(.subheadline.weight(.semibold))
@@ -220,7 +206,6 @@ struct DiagnosticsView: View {
                 LabeledContent("Aller-retour moyen", value: String(format: "%.0f ms", store.stats.averageLatencyMs))
                 LabeledContent("NO DATA / délais dépassés", value: "\(store.stats.noDataCount) / \(store.stats.timeoutCount)")
                 LabeledContent("Live Activity", value: "\(store.liveActivityUpdatesPerMinute) mises à jour / min")
-                LabeledContent("« À l'écoute »", value: "\(store.nowPlayingUpdatesPerMinute) pochettes / min")
             }
 
             Section("Valeurs brutes") {

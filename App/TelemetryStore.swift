@@ -29,7 +29,6 @@ final class TelemetryStore {
         didSet {
             settings.save()
             liveActivity.minInterval = settings.liveActivityInterval
-            nowPlaying.minInterval = settings.nowPlayingInterval
             if settings.keepAliveWithGPS != oldValue.keepAliveWithGPS { updateKeepAlive() }
         }
     }
@@ -43,7 +42,6 @@ final class TelemetryStore {
     private(set) var devices: [BLELink.Device] = []
     private(set) var liveActivityActive = false
     private(set) var liveActivityError: String?
-    private(set) var nowPlayingActive = false
 
     // Valeurs moteur
     private(set) var rpm: Double?
@@ -101,7 +99,6 @@ final class TelemetryStore {
 
     private let link = BLELink()
     private let liveActivity = LiveActivityController()
-    private let nowPlaying = NowPlayingDisplay()
     private let keepAlive = LocationKeepAlive()
     @ObservationIgnored private var sessionTask: Task<Void, Never>?
     /// Pression atmosphérique estimée moteur arrêté, si la voiture ne fournit pas le PID 0x33.
@@ -115,8 +112,6 @@ final class TelemetryStore {
 
     private init() {
         liveActivity.minInterval = settings.liveActivityInterval
-        nowPlaying.minInterval = settings.nowPlayingInterval
-        nowPlaying.onNextTrack = { [weak self] in self?.resetPeak() }
         link.onDevicesChanged = { [weak self] devices in
             Task { @MainActor in self?.devices = devices }
         }
@@ -186,7 +181,6 @@ final class TelemetryStore {
         gpsSpeedKmh = nil
         if !keepLiveActivity {
             stopLiveActivity()
-            stopNowPlaying()
         }
     }
 
@@ -237,7 +231,6 @@ final class TelemetryStore {
                 log(.error, message)
                 connection = .waiting(message)
                 pushLiveActivity()
-                if nowPlayingActive { nowPlaying.submit(gaugeSnapshot) }
             }
             if source == .adapter { link.disconnect() }
             if reachedRunning {
@@ -283,7 +276,6 @@ final class TelemetryStore {
         connection = .standby(reason)
         log(.info, "Veille : \(reason)")
         keepAlive.stop()
-        stopNowPlaying()
         UIApplication.shared.isIdleTimerDisabled = false
         pushLiveActivity()
     }
@@ -348,9 +340,6 @@ final class TelemetryStore {
 
         if settings.autoStartLiveActivity && !liveActivity.isActive {
             startLiveActivity()
-        }
-        if settings.autoStartNowPlaying && !nowPlayingActive {
-            startNowPlaying()
         }
         pushLiveActivity()
 
@@ -423,10 +412,9 @@ final class TelemetryStore {
             }
         }
         pushLiveActivity()
-        if nowPlayingActive { nowPlaying.submit(gaugeSnapshot) }
     }
 
-    /// Valeurs figées pour dessiner les jauges en image (CarPlay « À l'écoute », app CarPlay).
+    /// Valeurs figées pour dessiner les jauges en image (app CarPlay).
     var gaugeSnapshot: GaugeSnapshot {
         GaugeSnapshot(
             boostBar: boostBar,
@@ -442,26 +430,6 @@ final class TelemetryStore {
         )
     }
 
-    // MARK: - Écran « À l'écoute » de CarPlay (expérimental)
-
-    func startNowPlaying() {
-        do {
-            try nowPlaying.start()
-            nowPlayingActive = true
-            nowPlaying.submit(gaugeSnapshot)
-            log(.info, "Écran « À l'écoute » CarPlay activé")
-        } catch {
-            liveActivityError = "Impossible d'activer l'écran « À l'écoute » : \(error.localizedDescription)"
-            log(.error, liveActivityError ?? "")
-        }
-    }
-
-    func stopNowPlaying() {
-        nowPlaying.stop()
-        nowPlayingActive = false
-    }
-
-    var nowPlayingUpdatesPerMinute: Int { nowPlaying.updatesLastMinute }
 
     // MARK: - Live Activity (CarPlay)
 
