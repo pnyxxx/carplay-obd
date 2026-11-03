@@ -44,13 +44,20 @@ targets:
         LSRequiresIPhoneOS: true
         UILaunchScreen: {}
         UIApplicationSceneManifest:
-          UIApplicationSupportsMultipleScenes: false
+          UIApplicationSupportsMultipleScenes: true
+          UISceneConfigurations:
+            # Scène CarPlay (ne s'active que si la signature contient le droit CarPlay « driving task »).
+            CPTemplateApplicationSceneSessionRoleApplication:
+              - UISceneClassName: CPTemplateApplicationScene
+                UISceneConfigurationName: CarPlay
+                UISceneDelegateClassName: $(PRODUCT_MODULE_NAME).CarPlaySceneDelegate
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
         UIUserInterfaceStyle: Dark
         UIBackgroundModes:
+          - audio
           - bluetooth-central
           - location
         NSBluetoothAlwaysUsageDescription: "TrackGauge se connecte à l'adaptateur OBD Bluetooth pour lire le turbo, le régime et les températures."

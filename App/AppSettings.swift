@@ -12,6 +12,10 @@ struct AppSettings: Codable, Equatable {
     var autoStartLiveActivity = true
     var liveActivityInterval: Double = 1.0
 
+    // CarPlay / écran « À l'écoute » (expérimental, sans droit Apple)
+    var autoStartNowPlaying = false
+    var nowPlayingInterval: Double = 0.5
+
     // Arrière-plan
     var keepAliveWithGPS = true
 
@@ -39,9 +43,18 @@ struct AppSettings: Codable, Equatable {
 
     private static let key = "settings.v1"
 
+    /// Les réglages enregistrés sont superposés aux valeurs par défaut :
+    /// ajouter un réglage dans une nouvelle version n'efface pas les autres.
     static func load() -> AppSettings {
         guard let data = UserDefaults.standard.data(forKey: key),
-              let settings = try? JSONDecoder().decode(AppSettings.self, from: data) else {
+              let saved = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let defaultsData = try? JSONEncoder().encode(AppSettings()),
+              var merged = try? JSONSerialization.jsonObject(with: defaultsData) as? [String: Any] else {
+            return AppSettings()
+        }
+        merged.merge(saved) { _, savedValue in savedValue }
+        guard let mergedData = try? JSONSerialization.data(withJSONObject: merged),
+              let settings = try? JSONDecoder().decode(AppSettings.self, from: mergedData) else {
             return AppSettings()
         }
         return settings

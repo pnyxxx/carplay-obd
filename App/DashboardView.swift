@@ -239,7 +239,7 @@ struct StatusBar: View {
                     .font(.caption.monospacedDigit())
                     .foregroundStyle(.secondary)
             }
-            if store.liveActivityActive {
+            if store.liveActivityActive || store.nowPlayingActive {
                 Image(systemName: "carplay")
                     .foregroundStyle(.green)
                     .accessibilityLabel("Affiché dans CarPlay")
@@ -305,14 +305,25 @@ struct ControlBar: View {
                     .buttonStyle(.glass)
                 }
 
-                Button {
-                    if store.liveActivityActive { store.stopLiveActivity() } else { store.startLiveActivity() }
+                Menu {
+                    Toggle(isOn: Binding(
+                        get: { store.liveActivityActive },
+                        set: { $0 ? store.startLiveActivity() : store.stopLiveActivity() }
+                    )) {
+                        Label("Live Activity (Dashboard)", systemImage: "rectangle.split.2x1")
+                    }
+                    Toggle(isOn: Binding(
+                        get: { store.nowPlayingActive },
+                        set: { $0 ? store.startNowPlaying() : store.stopNowPlaying() }
+                    )) {
+                        Label("Écran « À l'écoute » (expérimental)", systemImage: "play.rectangle")
+                    }
                 } label: {
-                    Image(systemName: store.liveActivityActive ? "carplay" : "rectangle.badge.plus")
-                        .foregroundStyle(store.liveActivityActive ? Color.green : Color.white)
+                    Image(systemName: "carplay")
+                        .foregroundStyle(store.liveActivityActive || store.nowPlayingActive ? Color.green : Color.white)
                 }
                 .buttonStyle(.glass)
-                .accessibilityLabel(store.liveActivityActive ? "Retirer de CarPlay" : "Afficher dans CarPlay")
+                .accessibilityLabel("Affichage CarPlay")
 
                 Button {
                     showDevices = true
