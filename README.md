@@ -72,6 +72,14 @@ Avec un compte gratuit, l'app expire au bout de **7 jours** : il suffit de refai
    - Si rien n'apparaît : **Réglages > TrackData > Live Activities** activé ; **Réglages > Général > CarPlay > [ta voiture]** pour les options d'affichage.
 5. **Démo** : sans voiture, une 320d simulée enchaîne des accélérations. Toute la chaîne (OBD, jauges, Live Activity, CarPlay) est exercée.
 
+### CarPlay en temps réel : l'écran noir
+
+Quand l'écran de l'iPhone est éteint (il l'est toujours avec CarPlay, même sur un iPhone à écran toujours allumé), iOS ne redessine les jauges CarPlay que toutes les 5 à 15 s. Aucune app ne peut changer ça, ni garder l'écran allumé quand l'iPhone est verrouillé.
+
+La solution : laisser **TrackData ouverte** sur l'iPhone. Après 15 s sans toucher (réglable), l'écran passe **en noir à luminosité minimale**. Il reste allumé, donc CarPlay reste en temps réel, et un écran OLED noir ne consomme presque rien. Un toucher pour revenir. Le bouton **Écran noir** l'active tout de suite. L'écran noir s'arrête tout seul quand la voiture est coupée (veille), quand tu verrouilles l'iPhone ou quand tu quittes l'app.
+
+Pour que personne ne puisse utiliser le téléphone pendant ce temps : **Accès guidé** (Réglages > Accessibilité > Accès guidé, avec Face ID). Dans TrackData, triple-clic sur le bouton latéral > Démarrer ; pour sortir, triple-clic + Face ID.
+
 ### Max de turbo maintenu
 
 Après chaque pic, le max de turbo reste affiché quelques secondes dans une pastille orange **MAX 1.58**, avec un repère blanc sur l'arc : dans CarPlay, sur l'écran verrouillé et sur l'iPhone. Durée réglable (3, 5 ou 10 s) dans Réglages > Véhicule. Le « Pic session » de l'iPhone garde, lui, le record jusqu'à sa remise à zéro.
