@@ -1,0 +1,82 @@
+# Compile l'app sur un Mac de GitHub (gratuit pour un dépôt public) et publie une IPA non signée.
+# L'IPA est ensuite signée avec un compte Apple gratuit et installée depuis Linux (voir README).
+name: Build
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  obdkit-tests:
+    name: Tests OBDKit (Linux)
+    runs-on: ubuntu-latest
+    container: swift:6.2
+    steps:
+      - uses: actions/checkout@v4
+      - name: swift test
+        run: swift test --package-path Packages/OBDKit
+
+  ios:
+    name: App iOS
+    runs-on: macos-26
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Choisir le Xcode le plus récent (hors bêta)
+        run: |
+          ls -d /Applications/Xcode*.app
+          XCODE=$(ls -d /Applications/Xcode_*.app | grep -viE 'beta|_rc|release_candidate' | sort -V | tail -1)
+          echo "Xcode choisi : $XCODE"
+          sudo xcode-select -s "$XCODE/Contents/Developer"
+          xcodebuild -version
+          xcodebuild -showsdks | grep -i iphoneos
+
+      - name: Générer le projet Xcode (XcodeGen)
+        run: |
+          brew install xcodegen
+          xcodegen generate
+
+      - name: Compiler (Release, sans signature)
+        run: |
+          set -o pipefail
+          xcodebuild build -quiet \
+            -project TrackGauge.xcodeproj -scheme TrackGauge \
+            -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            CURRENT_PROJECT_VERSION=${{ github.run_number }} 2>&1 | tee build.log
+
+      - name: Fabriquer l'IPA
+        run: |
+          APP=build/Build/Products/Release-iphoneos/TrackGauge.app
+          echo "--- Contenu"; ls "$APP" "$APP/PlugIns"
+          echo "--- Info.plist"; plutil -p "$APP/Info.plist" | grep -E "CFBundle(Identifier|Version|ShortVersionString)|UIBackgroundModes|NSSupportsLiveActivities" -A3
+          mkdir -p ipa/Payload
+          cp -R "$APP" ipa/Payload/
+          (cd ipa && zip -qry ../TrackGauge-unsigned.ipa Payload)
+          ls -lh TrackGauge-unsigned.ipa
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TrackGauge-unsigned-${{ github.run_number }}
+          path: TrackGauge-unsigned.ipa
+
+      - name: Publier la release « latest »
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete latest --yes --cleanup-tag || true
+          gh release create latest TrackGauge-unsigned.ipa \
+            --title "Dernière version (build ${{ github.run_number }})" \
+            --notes "IPA non signée, construite depuis ${{ github.sha }}. À signer et installer avec iloader (compte Apple gratuit), voir le README." \
+            --target ${{ github.sha }} --prerelease

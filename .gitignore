@@ -1,0 +1,12 @@
+# Généré par XcodeGen
+*.xcodeproj/
+# Builds
+build/
+.build/
+DerivedData/
+*.ipa
+ipa/
+.swiftpm/
+.DS_Store
+App/Info.plist
+LiveActivity/Info.plist
