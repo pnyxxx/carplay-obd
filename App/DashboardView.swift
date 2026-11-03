@@ -37,22 +37,8 @@ struct DashboardView: View {
                     }
                     .padding(.horizontal)
                 }
-
-                if store.blackScreenActive {
-                    BlackScreenView()
-                }
             }
         }
-        // Chaque contact avec l'écran repousse le passage en écran noir.
-        .simultaneousGesture(DragGesture(minimumDistance: 0).onChanged { _ in store.noteInteraction() })
-        .task {
-            while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(1))
-                store.checkIdleForBlackScreen(sheetOpen: showSettings || showDevices)
-            }
-        }
-        .statusBarHidden(store.blackScreenActive)
-        .persistentSystemOverlays(store.blackScreenActive ? .hidden : .automatic)
         .sheet(isPresented: $showSettings) {
             SettingsView().environment(store)
         }
@@ -257,7 +243,7 @@ struct TemperatureRow: View {
             ValueTile(title: "Eau", value: store.coolantC.map { Format.temp($0) }, color: GaugePalette.coolant(store.coolantC), symbol: "thermometer.medium")
             ValueTile(title: "Air admis.", value: store.intakeAirC.map { Format.temp($0) }, color: .white, symbol: "wind")
             if store.oilC != nil {
-                ValueTile(title: "Huile", value: store.oilC.map { Format.temp($0) }, color: .orange, symbol: "drop.fill")
+                ValueTile(title: "Huile", value: store.oilC.map { Format.temp($0) }, color: GaugePalette.oil(store.oilC), symbol: "drop.fill")
             } else {
                 ValueTile(title: "Batterie", value: store.batteryV.map { String(format: "%.1f V", $0) }, color: .white, symbol: "minus.plus.batteryblock")
             }
@@ -287,37 +273,6 @@ struct ValueTile: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(12)
         .background(RoundedRectangle(cornerRadius: 16).fill(Color.white.opacity(0.06)))
-    }
-}
-
-// MARK: - Écran noir
-
-/// Écran entièrement noir (luminosité au minimum) : l'écran reste allumé, donc CarPlay reste en temps réel.
-struct BlackScreenView: View {
-    @Environment(TelemetryStore.self) private var store
-    @State private var showHint = true
-
-    var body: some View {
-        Color.black
-            .ignoresSafeArea()
-            .overlay {
-                if showHint {
-                    VStack(spacing: 10) {
-                        Image(systemName: "moon.fill").font(.title2)
-                        Text("Écran noir : CarPlay reste en temps réel.\nTouche l'écran pour revenir.")
-                            .multilineTextAlignment(.center)
-                    }
-                    .font(.footnote)
-                    .foregroundStyle(Color.white.opacity(0.35))
-                    .transition(.opacity)
-                }
-            }
-            .contentShape(Rectangle())
-            .onTapGesture { store.exitBlackScreen() }
-            .task {
-                try? await Task.sleep(for: .seconds(4))
-                withAnimation(.easeOut(duration: 1)) { showHint = false }
-            }
     }
 }
 
@@ -440,10 +395,6 @@ struct ControlBar: View {
 
                 ToolButton(title: "CarPlay", systemImage: "carplay", active: store.liveActivityActive) {
                     if store.liveActivityActive { store.stopLiveActivity() } else { store.startLiveActivity() }
-                }
-
-                ToolButton(title: "Écran noir", systemImage: "moon.fill", active: false) {
-                    store.enterBlackScreen()
                 }
 
                 ToolButton(title: "Adaptateur", systemImage: "antenna.radiowaves.left.and.right", active: false) {

@@ -11,6 +11,8 @@ struct TelemetryAttributes: ActivityAttributes {
         var peakBoostBar: Double?
         var rpm: Double?
         var coolantC: Double?
+        /// Température d'huile (si la voiture la fournit) : affichée en priorité dans CarPlay.
+        var oilC: Double?
         var intakeAirC: Double?
         /// Puissance instantanée (ch).
         var powerCh: Double?
@@ -30,7 +32,7 @@ struct TelemetryAttributes: ActivityAttributes {
 
 extension TelemetryAttributes.ContentState {
     static let waiting = TelemetryAttributes.ContentState(
-        boostBar: nil, peakBoostBar: nil, rpm: nil, coolantC: nil, intakeAirC: nil, powerCh: nil, peakPowerCh: nil,
+        boostBar: nil, peakBoostBar: nil, rpm: nil, coolantC: nil, oilC: nil, intakeAirC: nil, powerCh: nil, peakPowerCh: nil,
         connected: false, statusText: "Connexion…"
     )
 }

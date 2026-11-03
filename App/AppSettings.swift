@@ -23,10 +23,6 @@ struct AppSettings: Codable, Equatable {
     // Démarrage automatique
     var autoConnect = true
 
-    // Écran noir : écran de l'iPhone allumé en noir pour que CarPlay reste en temps réel
-    var autoBlackScreen = true
-    var blackScreenDelay: Double = 15
-
     // Arrière-plan
     var keepAliveWithGPS = true
 

@@ -13,12 +13,7 @@ struct TrackGaugeApp: App {
                 .environment(store)
                 .preferredColorScheme(.dark)
                 .onChange(of: scenePhase) { _, phase in
-                    if phase == .active {
-                        store.appDidBecomeActive()
-                    } else {
-                        // App quittée ou iPhone verrouillé : on rend la luminosité d'origine.
-                        store.exitBlackScreen()
-                    }
+                    if phase == .active { store.appDidBecomeActive() }
                 }
         }
     }

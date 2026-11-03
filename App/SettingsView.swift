@@ -51,7 +51,7 @@ struct SettingsView: View {
                 } header: {
                     Text("CarPlay (Live Activity)")
                 } footer: {
-                    Text("Dans CarPlay, les jauges apparaissent sur le Dashboard (écran partagé carte + infos). iOS limite le rythme des mises à jour : après chaque pic, le max de turbo reste affiché (pastille MAX) pendant la durée choisie dans « Véhicule ». Les jauges de l'iPhone, elles, sont en temps réel.")
+                    Text("Dans CarPlay, les jauges apparaissent sur le Dashboard (écran partagé carte + infos). iOS limite le rythme des mises à jour : quand l'écran de l'iPhone est éteint, il finit par ne les afficher que toutes les 5 à 15 s (allume l'écran verrouillé pour revenir au temps réel). Pour ménager ce budget, l'app n'envoie que les changements visibles. Après chaque pic, les max (pastille MAX) restent affichés pendant la durée choisie dans « Véhicule » : 10 s conseillé pour CarPlay. Les jauges de l'iPhone, elles, sont en temps réel.")
                 }
 
                 if let expiry = ExpirationReminder.expirationDate {
@@ -80,20 +80,6 @@ struct SettingsView: View {
                     Text("Démarrage automatique")
                 } footer: {
                     Text("L'adaptateur est mémorisé à la première connexion. Ensuite l'app s'y reconnecte seule : à l'ouverture, quand CarPlay se connecte (avec l'automatisation), et quand l'adaptateur se rallume. Sans voiture pendant 1 min 30, l'app se met en veille pour économiser la batterie. Ne ferme pas l'app à la main dans le sélecteur d'apps : iOS ne pourrait plus la relancer.")
-                }
-
-                Section {
-                    Toggle("Écran noir automatique", isOn: $store.settings.autoBlackScreen)
-                    Picker("Après", selection: $store.settings.blackScreenDelay) {
-                        Text("10 s").tag(10.0)
-                        Text("15 s").tag(15.0)
-                        Text("30 s").tag(30.0)
-                        Text("1 min").tag(60.0)
-                    }
-                } header: {
-                    Text("Écran de l'iPhone")
-                } footer: {
-                    Text("Quand l'écran de l'iPhone est éteint, iOS ne met à jour les jauges CarPlay que toutes les 5 à 15 s. Laisse TrackData ouverte sur l'iPhone : après ce délai sans toucher, l'écran passe en noir à luminosité minimale (presque aucune consommation), il reste allumé et CarPlay reste en temps réel. Touche l'écran pour revenir.")
                 }
 
                 Section {

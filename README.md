@@ -72,13 +72,9 @@ Avec un compte gratuit, l'app expire au bout de **7 jours** : il suffit de refai
    - Si rien n'apparaît : **Réglages > TrackData > Live Activities** activé ; **Réglages > Général > CarPlay > [ta voiture]** pour les options d'affichage.
 5. **Démo** : sans voiture, une 320d simulée enchaîne des accélérations. Toute la chaîne (OBD, jauges, Live Activity, CarPlay) est exercée.
 
-### CarPlay en temps réel : l'écran noir
+### Rythme de CarPlay et limites d'iOS
 
-Quand l'écran de l'iPhone est éteint (il l'est toujours avec CarPlay, même sur un iPhone à écran toujours allumé), iOS ne redessine les jauges CarPlay que toutes les 5 à 15 s. Aucune app ne peut changer ça, ni garder l'écran allumé quand l'iPhone est verrouillé.
-
-La solution : laisser **TrackData ouverte** sur l'iPhone. Après 15 s sans toucher (réglable), l'écran passe **en noir à luminosité minimale**. Il reste allumé, donc CarPlay reste en temps réel, et un écran OLED noir ne consomme presque rien. Un toucher pour revenir. Le bouton **Écran noir** l'active tout de suite. L'écran noir s'arrête tout seul quand la voiture est coupée (veille), quand tu verrouilles l'iPhone ou quand tu quittes l'app.
-
-Pour que personne ne puisse utiliser le téléphone pendant ce temps : **Accès guidé** (Réglages > Accessibilité > Accès guidé, avec Face ID). Dans TrackData, triple-clic sur le bouton latéral > Démarrer ; pour sortir, triple-clic + Face ID.
+iOS limite volontairement les mises à jour des Live Activities. Quand l'écran de l'iPhone est éteint (il l'est toujours avec CarPlay), il finit par ne les afficher que toutes les 5 à 15 s. Allumer l'écran verrouillé remet le temps réel. Selon Apple, la seule voie officielle pour des mises à jour très fréquentes passe par des notifications push depuis un serveur (compte payant + Internet), pas adaptée ici. Pour ménager le budget d'iOS, l'app n'envoie que les changements visibles (au rythme réglé pendant les accélérations, toutes les 5 s sinon). Conseil : max maintenus à 10 s pour voir chaque pic dans CarPlay.
 
 ### Max de turbo maintenu
 

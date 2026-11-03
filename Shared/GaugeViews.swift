@@ -26,6 +26,15 @@ enum GaugePalette {
         return .red
     }
 
+    /// Huile : froide < 80 °C (pas de pleine charge), normale jusqu'à 125 °C, chaude au-delà.
+    static func oil(_ celsius: Double?) -> Color {
+        guard let celsius else { return .gray }
+        if celsius < 80 { return .blue }
+        if celsius < 125 { return .green }
+        if celsius < 135 { return .orange }
+        return .red
+    }
+
     static func rpm(_ rpm: Double?, redline: Double) -> Color {
         guard let rpm else { return .gray }
         if rpm >= redline { return .red }
