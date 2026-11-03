@@ -9,6 +9,18 @@ import UIKit
 ///
 /// Usage privé sur circuit : on ignore volontairement la consigne d'Apple « pas plus d'un
 /// rafraîchissement toutes les 10 s » et on met à jour 5 fois par seconde.
+///
+/// Activation (une fois le droit accordé) :
+/// 1. project.yml, cible TrackGauge > settings > base : `CODE_SIGN_ENTITLEMENTS: App/TrackGauge-CarPlay.entitlements`
+/// 2. project.yml, Info.plist > UIApplicationSceneManifest :
+///      UIApplicationSupportsMultipleScenes: true
+///      UISceneConfigurations:
+///        CPTemplateApplicationSceneSessionRoleApplication:
+///          - UISceneClassName: CPTemplateApplicationScene
+///            UISceneConfigurationName: CarPlay
+///            UISceneDelegateClassName: $(PRODUCT_MODULE_NAME).CarPlaySceneDelegate
+/// 3. Vérifier sur l'iPhone que l'écran du téléphone s'affiche toujours (risque connu avec SwiftUI ;
+///    si besoin, déclarer aussi une scène UIWindowSceneSessionRoleApplication).
 final class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
     private var interfaceController: CPInterfaceController?
     private var refreshTask: Task<Void, Never>?

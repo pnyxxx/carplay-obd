@@ -217,7 +217,9 @@ public enum ELMParser {
                 guard index < bytes.count else { continue }
                 let end = min(index + length, bytes.count)
                 if end - index < length { result.incomplete = true }
-                result.messages.append(ECUMessage(header: hex(bytes[0..<index]), bytes: Array(bytes[index..<end])))
+                // En-tête = adresses cible + source (l'octet de format change avec la longueur de la réponse).
+                let addressBytes = format & 0xC0 != 0 ? bytes[1..<3] : bytes[0..<0]
+                result.messages.append(ECUMessage(header: hex(addressBytes), bytes: Array(bytes[index..<end])))
             } else {
                 // ISO 9141 / J1850 : 3 octets d'en-tête, données, puis 1 octet de somme de contrôle.
                 guard bytes.count >= 5 else { continue }

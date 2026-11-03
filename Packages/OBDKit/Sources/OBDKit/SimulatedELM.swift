@@ -130,12 +130,15 @@ public final class SimulatedELM: ELMTransport, @unchecked Sendable {
     private let startDate = Date()
     private let latency: Duration
     private let stn: Bool
+    private let proto: OBDProtocol
     public let car: SimulatedCar
 
-    public init(car: SimulatedCar = SimulatedCar(), latency: Duration = .milliseconds(30), stn: Bool = true) {
+    /// - Parameter proto: `.can11_500` (E90 récente, D-CAN) ou `.kwpFast` (E90 ancienne, K-line).
+    public init(car: SimulatedCar = SimulatedCar(), latency: Duration = .milliseconds(30), stn: Bool = true, proto: OBDProtocol = .can11_500) {
         self.car = car
         self.latency = latency
         self.stn = stn
+        self.proto = proto
     }
 
     public func send(_ command: String, timeout: Duration) async throws -> String {
@@ -180,7 +183,7 @@ public final class SimulatedELM: ELMTransport, @unchecked Sendable {
         case "S0": spaces = false
         case "S1": spaces = true
         case "I": return ["ELM327 v1.5"]
-        case "DPN": return ["A6"]
+        case "DPN": return ["A" + String(proto.rawValue, radix: 16).uppercased()]
         case "RV": return ["13.9V"]
         default:
             if cmd.hasPrefix("SH") { requestHeader = String(cmd.dropFirst(2)) }
@@ -203,11 +206,13 @@ public final class SimulatedELM: ELMTransport, @unchecked Sendable {
             if let data = car.data(for: pid, at: t) { payload += [pid] + data }
         }
 
+        let engineID = proto.isCAN ? "7E8" : "10"
+        let gearboxID = proto.isCAN ? "7E9" : "18"
         var messages: [(header: String, payload: [UInt8])] = []
-        if payload.count > 1 { messages.append(("7E8", payload)) }
+        if payload.count > 1 { messages.append((engineID, payload)) }
         // La boîte de vitesses répond aussi aux requêtes « PID supportés » envoyées à tous (7DF).
         if requestHeader == "7DF", pids.count == 1, pids[0] == 0x00 {
-            messages.append(("7E9", [0x41, 0x00] + car.bitmap(base: 0, supported: [0x01, 0x0D, 0x1C])))
+            messages.append((gearboxID, [0x41, 0x00] + car.bitmap(base: 0, supported: [0x01, 0x0D, 0x1C])))
         }
         guard !messages.isEmpty else { return ["NO DATA"] }
 
@@ -222,6 +227,15 @@ public final class SimulatedELM: ELMTransport, @unchecked Sendable {
     private func format(_ payload: [UInt8], header: String) -> [String] {
         let sep = spaces ? " " : ""
         func hex(_ bytes: [UInt8]) -> String { bytes.map { String(format: "%02X", $0) }.joined(separator: sep) }
+
+        if !proto.isCAN {
+            // KWP2000 : octet de format (adresses + longueur), cible F1, source, données, somme de contrôle.
+            guard headers else { return [hex(payload)] }
+            let source = UInt8(header, radix: 16) ?? 0x10
+            var frame: [UInt8] = [0x80 | UInt8(payload.count), 0xF1, source] + payload
+            frame.append(UInt8(truncatingIfNeeded: frame.reduce(0) { $0 + Int($1) }))
+            return [hex(frame)]
+        }
 
         if !headers {
             if payload.count <= 7 { return [hex(payload)] }

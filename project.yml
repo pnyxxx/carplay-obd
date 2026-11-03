@@ -43,14 +43,11 @@ targets:
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         LSRequiresIPhoneOS: true
         UILaunchScreen: {}
+        # Configuration éprouvée sur l'iPhone. La scène CarPlay (App/CarPlaySceneDelegate.swift) n'est PAS
+        # déclarée tant que le droit Apple « driving task » n'est pas accordé : la déclarer dans une app SwiftUI
+        # peut donner un écran vide. Pour l'activer le jour venu, voir l'en-tête de CarPlaySceneDelegate.swift.
         UIApplicationSceneManifest:
-          UIApplicationSupportsMultipleScenes: true
-          UISceneConfigurations:
-            # Scène CarPlay (ne s'active que si la signature contient le droit CarPlay « driving task »).
-            CPTemplateApplicationSceneSessionRoleApplication:
-              - UISceneClassName: CPTemplateApplicationScene
-                UISceneConfigurationName: CarPlay
-                UISceneDelegateClassName: $(PRODUCT_MODULE_NAME).CarPlaySceneDelegate
+          UIApplicationSupportsMultipleScenes: false
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
           - UIInterfaceOrientationLandscapeLeft

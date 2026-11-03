@@ -43,7 +43,11 @@ final class ParserTests: XCTestCase {
     func testKWPWithHeaders() {
         // E90 avant 03/2007 : K-line KWP2000. Format 0x84 = adresses + 4 octets de données, puis somme de contrôle.
         let response = ELMParser.parse("84F112410C1AF8C3\r\r>", protocol: .kwpFast, headers: true)
-        XCTAssertEqual(response.messages, [ECUMessage(header: "84F112", bytes: [0x41, 0x0C, 0x1A, 0xF8])])
+        XCTAssertEqual(response.messages, [ECUMessage(header: "F112", bytes: [0x41, 0x0C, 0x1A, 0xF8])])
+        // Même calculateur, réponse plus longue : même identifiant.
+        let longer = ELMParser.parse("86F1124100BE3EB811AA\r\r>", protocol: .kwpFast, headers: true)
+        XCTAssertEqual(longer.messages.first?.header, "F112")
+        XCTAssertEqual(longer.messages.first?.bytes, [0x41, 0x00, 0xBE, 0x3E, 0xB8, 0x11])
     }
 
     func testISO9141WithHeaders() {
@@ -153,6 +157,26 @@ final class SessionTests: XCTestCase {
         XCTAssertTrue(channels.isSuperset(of: [.rpm, .intakePressureKPa, .boostTargetKPa, .coolantC, .intakeAirC, .speedKmh]), "\(channels)")
         XCTAssertGreaterThan(collector.stats.last?.fastUpdatesPerSecond ?? 0, 20)
         XCTAssertTrue(collector.readings.filter { $0.channel == .rpm }.allSatisfy { $0.value > 500 && $0.value < 5000 })
+    }
+
+    func testKLineSession() async throws {
+        // E90 d'avant 2007 environ : K-line (KWP2000), pas d'adressage direct, plusieurs calculateurs.
+        let collector = Collector()
+        let session = ELMSession(transport: SimulatedELM(latency: .milliseconds(3), proto: .kwpFast)) { collector.handle($0) }
+        let info = try await session.initialize()
+        XCTAssertEqual(info.proto, .kwpFast)
+        XCTAssertEqual(info.engineECU, "F110")
+        XCTAssertEqual(info.respondingECUs, ["F110", "F118"])
+        XCTAssertFalse(info.physicalAddressing)
+        XCTAssertFalse(info.responseCount)
+        XCTAssertEqual(info.boostSource, .pid70)
+
+        let task = Task { try await session.run() }
+        try await Task.sleep(for: .milliseconds(500))
+        task.cancel()
+        _ = try? await task.value
+        let channels = Set(collector.readings.map(\.channel))
+        XCTAssertTrue(channels.isSuperset(of: [.rpm, .intakePressureKPa, .coolantC]), "\(channels)")
     }
 
     func testFallsBackToPID0BWithout70() async throws {
