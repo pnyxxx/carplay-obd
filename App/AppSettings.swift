@@ -16,6 +16,9 @@ struct AppSettings: Codable, Equatable {
     var autoStartNowPlaying = false
     var nowPlayingInterval: Double = 0.5
 
+    // Démarrage automatique
+    var autoConnect = true
+
     // Arrière-plan
     var keepAliveWithGPS = true
 

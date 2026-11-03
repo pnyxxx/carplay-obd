@@ -72,7 +72,12 @@ final class BLELink: NSObject, ELMTransport, @unchecked Sendable {
 
     override init() {
         super.init()
-        central = CBCentralManager(delegate: self, queue: queue, options: [CBCentralManagerOptionShowPowerAlertKey: true])
+        // Restauration d'état : si iOS a fermé l'app, il la relance en arrière-plan quand l'adaptateur
+        // mémorisé se reconnecte (sauf si l'app a été fermée à la main dans le sélecteur d'apps).
+        central = CBCentralManager(delegate: self, queue: queue, options: [
+            CBCentralManagerOptionShowPowerAlertKey: true,
+            CBCentralManagerOptionRestoreIdentifierKey: "fr.plmn.trackgauge.central",
+        ])
     }
 
     // MARK: - Connexion
@@ -117,15 +122,7 @@ final class BLELink: NSObject, ELMTransport, @unchecked Sendable {
         guard let target else { throw LinkError.notFound }
 
         let name = try await withTimeout(.seconds(15)) {
-            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<String, Error>) in
-                self.queue.async {
-                    self.connectContinuation?.resume(throwing: LinkError.connectionFailed("nouvelle tentative"))
-                    self.connectContinuation = continuation
-                    self.peripheral = target
-                    target.delegate = self
-                    self.central.connect(target, options: nil)
-                }
-            }
+            try await self.establish(target)
         } onTimeout: {
             self.queue.async {
                 self.connectContinuation?.resume(throwing: TransportError.timeout)
@@ -134,6 +131,43 @@ final class BLELink: NSObject, ELMTransport, @unchecked Sendable {
             }
         }
         return (target.identifier, name)
+    }
+
+    /// Attend que l'adaptateur mémorisé réapparaisse (contact mis), sans limite de temps.
+    /// iOS garde la demande de connexion active même app suspendue, et réveille l'app quand elle aboutit.
+    func waitForAdapter(_ id: UUID) async throws -> (id: UUID, name: String) {
+        try await waitUntilPoweredOn()
+        guard let target = await onQueue({ self.central.retrievePeripherals(withIdentifiers: [id]).first }) else {
+            throw LinkError.notFound
+        }
+        let name = try await withTaskCancellationHandler {
+            try await self.establish(target)
+        } onCancel: {
+            self.queue.async {
+                self.connectContinuation?.resume(throwing: CancellationError())
+                self.connectContinuation = nil
+                self.central.cancelPeripheralConnection(target)
+            }
+        }
+        return (target.identifier, name)
+    }
+
+    /// Connexion + découverte du port série + activation des notifications.
+    private func establish(_ target: CBPeripheral) async throws -> String {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<String, Error>) in
+            self.queue.async {
+                self.connectContinuation?.resume(throwing: LinkError.connectionFailed("nouvelle tentative"))
+                self.connectContinuation = continuation
+                self.peripheral = target
+                target.delegate = self
+                if target.state == .connected {
+                    // Déjà connecté (restauration par iOS) : on reprend à la découverte des services.
+                    target.discoverServices(nil)
+                } else {
+                    self.central.connect(target, options: nil)
+                }
+            }
+        }
     }
 
     private func scanForAdapter(timeout: Duration) async throws -> CBPeripheral? {
@@ -260,6 +294,14 @@ final class BLELink: NSObject, ELMTransport, @unchecked Sendable {
 // MARK: - CBCentralManagerDelegate
 
 extension BLELink: CBCentralManagerDelegate {
+    func centralManager(_ central: CBCentralManager, willRestoreState dict: [String: Any]) {
+        let restored = dict[CBCentralManagerRestoredStatePeripheralsKey] as? [CBPeripheral] ?? []
+        for peripheral in restored {
+            peripheral.delegate = self
+            discoveredPeripherals[peripheral.identifier] = peripheral
+        }
+    }
+
     func centralManagerDidUpdateState(_ central: CBCentralManager) {
         switch central.state {
         case .poweredOn:

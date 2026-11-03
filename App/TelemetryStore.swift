@@ -18,6 +18,7 @@ final class TelemetryStore {
         case initializing(String)
         case running
         case waiting(String)   // erreur, nouvel essai automatique
+        case standby(String)   // voiture arrêtée : on attend l'adaptateur ou un réveil (CarPlay, ouverture de l'app)
     }
 
     struct BoostSample { let time: TimeInterval; let bar: Double }
@@ -76,6 +77,16 @@ final class TelemetryStore {
 
     var isRunning: Bool { source != nil }
 
+    var isConnected: Bool {
+        if case .running = connection { return true }
+        return false
+    }
+
+    var isStandby: Bool {
+        if case .standby = connection { return true }
+        return false
+    }
+
     // MARK: Interne
 
     private let link = BLELink()
@@ -85,6 +96,10 @@ final class TelemetryStore {
     @ObservationIgnored private var sessionTask: Task<Void, Never>?
     /// Pression atmosphérique estimée moteur arrêté, si la voiture ne fournit pas le PID 0x33.
     @ObservationIgnored private var estimatedBaroKPa: Double?
+    /// Arrêt demandé à la main : pas de reconnexion automatique avant le prochain lancement.
+    @ObservationIgnored private var userStopped = false
+    @ObservationIgnored private var reachedRunning = false
+    @ObservationIgnored private var bootstrapped = false
 
     private var effectiveBaroKPa: Double { baroKPa ?? estimatedBaroKPa ?? 101.3 }
 
@@ -98,14 +113,48 @@ final class TelemetryStore {
         keepAlive.onSpeed = { [weak self] speed in
             self?.gpsSpeedKmh = speed
         }
-        // Une Live Activity restée ouverte après un arrêt brutal de l'app est fermée au lancement.
-        liveActivity.stop()
+    }
+
+    // MARK: - Démarrage automatique
+
+    /// Appelé à chaque lancement de l'app, y compris en arrière-plan (raccourci CarPlay, reconnexion Bluetooth).
+    func bootstrap() {
+        guard !bootstrapped else { return }
+        bootstrapped = true
+        if liveActivity.adoptExisting() { liveActivityActive = true }
+        if settings.autoConnect && settings.savedAdapterID != nil {
+            start(.adapter)
+        }
+    }
+
+    /// L'app revient au premier plan.
+    func appDidBecomeActive() {
+        bootstrap()
+        if isStandby {
+            start(.adapter)
+        } else if source == nil, settings.autoConnect, settings.savedAdapterID != nil, !userStopped {
+            start(.adapter)
+        }
+        // Live Activity refusée pendant un démarrage en arrière-plan : on la crée maintenant.
+        if isConnected, settings.autoStartLiveActivity, !liveActivityActive, liveActivityError != nil {
+            startLiveActivity()
+        }
+    }
+
+    /// Réveil explicite (raccourci « Démarrer la télémétrie », automatisation CarPlay).
+    func wake() {
+        bootstrap()
+        userStopped = false
+        if source != .adapter || isStandby {
+            start(.adapter)
+        }
     }
 
     // MARK: - Démarrage / arrêt
 
     func start(_ newSource: Source) {
-        stop(keepLiveActivity: true)
+        stop(keepLiveActivity: true, byUser: false)
+        userStopped = false
         source = newSource
         resetValues()
         UIApplication.shared.isIdleTimerDisabled = true
@@ -115,7 +164,8 @@ final class TelemetryStore {
         }
     }
 
-    func stop(keepLiveActivity: Bool = false) {
+    func stop(keepLiveActivity: Bool = false, byUser: Bool = true) {
+        if byUser { userStopped = true }
         sessionTask?.cancel()
         sessionTask = nil
         if source == .adapter { link.disconnect() }
@@ -161,14 +211,17 @@ final class TelemetryStore {
 
     private func sessionLoop(_ source: Source) async {
         var attempt = 0
+        var failingSince: Date?
         while !Task.isCancelled {
+            var lastError: Error?
+            reachedRunning = false
             do {
                 try await runSession(source)
             } catch is CancellationError {
                 return
             } catch {
                 if Task.isCancelled { return }
-                attempt += 1
+                lastError = error
                 let message = Self.describe(error)
                 log(.error, message)
                 connection = .waiting(message)
@@ -176,8 +229,71 @@ final class TelemetryStore {
                 if nowPlayingActive { nowPlaying.submit(gaugeSnapshot) }
             }
             if source == .adapter { link.disconnect() }
-            // Nouvel essai : rapide au début, puis toutes les 5 s (contact coupé, adaptateur hors de portée…).
-            try? await Task.sleep(for: .seconds(attempt < 3 ? 2 : 5))
+            if reachedRunning {
+                attempt = 0
+                failingSince = nil
+            }
+            attempt += 1
+            if failingSince == nil { failingSince = Date() }
+
+            // Plus d'une minute et demie sans voiture : mise en veille pour ne pas vider la batterie.
+            if source == .adapter, let since = failingSince, Date().timeIntervalSince(since) > 90 {
+                let adapterAbsent = Self.isAdapterAbsent(lastError)
+                enterStandby(adapterAbsent ? "adaptateur éteint, en attente de la voiture" : "la voiture ne répond pas (contact coupé ?)")
+                do {
+                    if adapterAbsent, let id = settings.savedAdapterID {
+                        // iOS garde la demande de connexion et réveille l'app quand l'adaptateur revient.
+                        _ = try await link.waitForAdapter(id)
+                        log(.info, "Adaptateur revenu : reprise automatique")
+                    } else {
+                        // Adaptateur allumé mais voiture muette : nouvel essai de temps en temps
+                        // (ou tout de suite si CarPlay se connecte / si l'app est ouverte).
+                        try await Task.sleep(for: .seconds(60))
+                    }
+                } catch {
+                    if Task.isCancelled { return }
+                }
+                leaveStandby()
+                attempt = 0
+                failingSince = nil
+                continue
+            }
+
+            // Nouvel essai : rapide au début, puis toutes les 5 s.
+            do {
+                try await Task.sleep(for: .seconds(attempt < 3 ? 2 : 5))
+            } catch {
+                return
+            }
+        }
+    }
+
+    private func enterStandby(_ reason: String) {
+        connection = .standby(reason)
+        log(.info, "Veille : \(reason)")
+        keepAlive.stop()
+        stopNowPlaying()
+        UIApplication.shared.isIdleTimerDisabled = false
+        pushLiveActivity()
+    }
+
+    private func leaveStandby() {
+        connection = .searching
+        UIApplication.shared.isIdleTimerDisabled = true
+        updateKeepAlive()
+    }
+
+    /// Vrai si l'erreur signifie « adaptateur introuvable / éteint » (et pas « voiture muette »).
+    private static func isAdapterAbsent(_ error: Error?) -> Bool {
+        switch error {
+        case let error as BLELink.LinkError:
+            if case .notFound = error { return true }
+            if case .connectionFailed = error { return true }
+            return false
+        case let error as TransportError:
+            return error == .timeout || error == .disconnected
+        default:
+            return false
         }
     }
 
@@ -217,6 +333,7 @@ final class TelemetryStore {
         adapterInfo = info
         if let baro = info.initialBaroKPa { baroKPa = baro }
         connection = .running
+        reachedRunning = true
 
         if settings.autoStartLiveActivity && !liveActivity.isActive {
             startLiveActivity()
@@ -368,6 +485,7 @@ final class TelemetryStore {
         switch connection {
         case .running: status = "OK"
         case .waiting: status = "Attente voiture…"
+        case .standby: status = "En veille"
         case .idle: status = "Arrêté"
         default: status = "Connexion…"
         }

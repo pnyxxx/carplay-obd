@@ -253,6 +253,7 @@ struct StatusBar: View {
         case .running: return .green
         case .idle: return .gray
         case .waiting: return .orange
+        case .standby: return .blue
         default: return .yellow
         }
     }
@@ -265,6 +266,7 @@ struct StatusBar: View {
         case .initializing(let text): return text
         case .running: return store.adapterName ?? "Connecté"
         case .waiting(let reason): return reason
+        case .standby(let reason): return "En veille : \(reason)"
         }
     }
 }
@@ -282,6 +284,14 @@ struct ControlBar: View {
                 Text(error).font(.footnote).foregroundStyle(.orange)
             }
             HStack(spacing: 10) {
+                if store.isStandby {
+                    Button {
+                        store.wake()
+                    } label: {
+                        Label("Relancer", systemImage: "arrow.clockwise").frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.glassProminent)
+                }
                 if store.isRunning {
                     Button(role: .destructive) {
                         store.stop()

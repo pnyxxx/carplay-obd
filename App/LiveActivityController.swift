@@ -30,6 +30,20 @@ final class LiveActivityController {
         return sentTimes.filter { $0 > limit }.count
     }
 
+    /// Reprend la Live Activity d'un lancement précédent (l'app a pu être relancée en arrière-plan,
+    /// où iOS n'autorise pas à en créer une nouvelle). Renvoie vrai si une activité est reprise.
+    func adoptExisting() -> Bool {
+        let running = Activity<TelemetryAttributes>.activities.filter {
+            $0.activityState == .active || $0.activityState == .stale
+        }
+        guard let current = running.first else { return false }
+        for extra in running.dropFirst() {
+            Task { await extra.end(nil, dismissalPolicy: .immediate) }
+        }
+        activity = current
+        return true
+    }
+
     func start(attributes: TelemetryAttributes, state: TelemetryAttributes.ContentState) throws {
         // Une seule Live Activity à la fois : on ferme celles d'une session précédente.
         for old in Activity<TelemetryAttributes>.activities {

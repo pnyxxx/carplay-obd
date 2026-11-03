@@ -26,8 +26,14 @@ final class LocationKeepAlive: NSObject, CLLocationManagerDelegate {
     func start() {
         guard !isRunning else { return }
         isRunning = true
-        if manager.authorizationStatus == .notDetermined {
+        switch manager.authorizationStatus {
+        case .notDetermined:
             manager.requestWhenInUseAuthorization()
+        case .authorizedWhenInUse:
+            // « Toujours » permet de relancer le GPS quand l'app démarre seule en arrière-plan (CarPlay).
+            manager.requestAlwaysAuthorization()
+        default:
+            break
         }
         // Nécessite UIBackgroundModes = location dans Info.plist (sinon plantage).
         manager.allowsBackgroundLocationUpdates = true

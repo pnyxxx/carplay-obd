@@ -1,30 +1,37 @@
 import AppIntents
 
-/// « Démarrer la télémétrie » : utilisable dans Raccourcis, avec Siri, ou en automatisation
-/// « Quand CarPlay se connecte » pour que tout démarre tout seul en montant dans la voiture.
-/// LiveActivityIntent permet de lancer la Live Activity même si l'app est en arrière-plan.
+/// « Démarrer la télémétrie » : à lancer par l'automatisation Raccourcis « Quand CarPlay se connecte ».
+/// LiveActivityIntent : iOS autorise ici à créer la Live Activity même si l'app est en arrière-plan.
 struct StartTelemetryIntent: LiveActivityIntent {
     static let title: LocalizedStringResource = "Démarrer la télémétrie"
 
     @MainActor
     func perform() async throws -> some IntentResult {
         let store = TelemetryStore.shared
-        if !store.isRunning {
-            store.start(.adapter)
-        }
+        store.wake()
         if store.settings.autoStartLiveActivity && !store.liveActivityActive {
             store.startLiveActivity()
+        }
+        if store.settings.autoStartNowPlaying && !store.nowPlayingActive {
+            store.startNowPlaying()
+        }
+        // iOS laisse l'app tourner pendant l'exécution du raccourci : on en profite pour
+        // aller jusqu'à la connexion avec la voiture (20 s maximum).
+        let deadline = Date().addingTimeInterval(20)
+        while !store.isConnected && Date() < deadline {
+            try? await Task.sleep(for: .milliseconds(500))
         }
         return .result()
     }
 }
 
+/// « Arrêter la télémétrie » : pour l'automatisation « Quand CarPlay se déconnecte ».
 struct StopTelemetryIntent: LiveActivityIntent {
     static let title: LocalizedStringResource = "Arrêter la télémétrie"
 
     @MainActor
     func perform() async throws -> some IntentResult {
-        TelemetryStore.shared.stop()
+        TelemetryStore.shared.stop(byUser: false)
         return .result()
     }
 }

@@ -55,6 +55,23 @@ struct SettingsView: View {
                 }
 
                 Section {
+                    Toggle("Connexion automatique", isOn: $store.settings.autoConnect)
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Pour que tout démarre seul en montant dans la voiture :").font(.subheadline.weight(.semibold))
+                        Text("1. App Raccourcis > Automatisation > +")
+                        Text("2. CarPlay > « Se connecte » > Exécuter immédiatement")
+                        Text("3. Action « Démarrer la télémétrie » (TrackGauge)")
+                        Text("Facultatif : même chose avec « Se déconnecte » et « Arrêter la télémétrie ».")
+                            .foregroundStyle(.secondary)
+                    }
+                    .font(.footnote)
+                } header: {
+                    Text("Démarrage automatique")
+                } footer: {
+                    Text("L'adaptateur est mémorisé à la première connexion. Ensuite l'app s'y reconnecte seule : à l'ouverture, quand CarPlay se connecte (avec l'automatisation), et quand l'adaptateur se rallume. Sans voiture pendant 1 min 30, l'app se met en veille pour économiser la batterie. Ne ferme pas l'app à la main dans le sélecteur d'apps : iOS ne pourrait plus la relancer.")
+                }
+
+                Section {
                     Toggle("Rester actif grâce au GPS", isOn: $store.settings.keepAliveWithGPS)
                 } header: {
                     Text("Arrière-plan")
