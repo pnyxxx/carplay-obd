@@ -5,6 +5,10 @@ name: Build
 on:
   push:
     branches: [main]
+    # Pas de recompilation pour un simple changement de documentation.
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
   workflow_dispatch:
 
 concurrency:
