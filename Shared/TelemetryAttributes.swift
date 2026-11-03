@@ -14,6 +14,8 @@ struct TelemetryAttributes: ActivityAttributes {
         var intakeAirC: Double?
         /// Puissance instantanée (ch).
         var powerCh: Double?
+        /// Max de puissance maintenu quelques secondes après le pic.
+        var peakPowerCh: Double?
         var connected: Bool
         var statusText: String
     }
@@ -28,7 +30,7 @@ struct TelemetryAttributes: ActivityAttributes {
 
 extension TelemetryAttributes.ContentState {
     static let waiting = TelemetryAttributes.ContentState(
-        boostBar: nil, peakBoostBar: nil, rpm: nil, coolantC: nil, intakeAirC: nil, powerCh: nil,
+        boostBar: nil, peakBoostBar: nil, rpm: nil, coolantC: nil, intakeAirC: nil, powerCh: nil, peakPowerCh: nil,
         connected: false, statusText: "Connexion…"
     )
 }

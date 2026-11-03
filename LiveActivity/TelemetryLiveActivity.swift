@@ -120,21 +120,24 @@ struct SmallTelemetryView: View {
                       valueFont: .system(size: 19, weight: .bold, design: .rounded))
                 .frame(minWidth: 62, maxWidth: 84, minHeight: 62, maxHeight: 84)
 
+            // CarPlay : puissance en chevaux à la place du régime.
             VStack(alignment: .leading, spacing: 3) {
                 HStack(alignment: .firstTextBaseline, spacing: 3) {
-                    Text(Format.rpm(state.rpm))
-                        .font(.system(size: 22, weight: .bold, design: .rounded).monospacedDigit())
-                        .foregroundStyle(state.rpm.map { $0 >= attributes.redlineRPM } == true ? Color.red : Color.primary)
-                        .contentTransition(.numericText(value: state.rpm ?? 0))
-                    Text("tr/min").font(.caption2).foregroundStyle(.secondary)
+                    Text(Format.power(state.powerCh))
+                        .font(.system(size: 24, weight: .heavy, design: .rounded).monospacedDigit())
+                        .foregroundStyle(state.powerCh == nil ? Color.secondary : Color.cyan)
+                        .contentTransition(.numericText(value: state.powerCh ?? 0))
+                    Text("ch").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                    if let peak = state.peakPowerCh {
+                        Text("max \(Format.power(peak))")
+                            .font(.caption2.weight(.semibold).monospacedDigit())
+                            .foregroundStyle(.secondary)
+                    }
                 }
-                RPMBar(rpm: state.rpm, rpmMax: attributes.rpmMax, redline: attributes.redlineRPM, height: 6)
+                PowerBar(power: state.powerCh, peak: state.peakPowerCh, maxPower: attributes.maxPowerCh ?? 220, height: 6)
                 HStack(spacing: 8) {
                     Label(Format.temp(state.coolantC), systemImage: "thermometer.medium")
                         .foregroundStyle(GaugePalette.coolant(state.coolantC))
-                    if let power = state.powerCh {
-                        Text("\(Format.power(power)) ch").foregroundStyle(Color.cyan)
-                    }
                     if let peak = state.peakBoostBar {
                         PeakBadge(value: peak)
                     }

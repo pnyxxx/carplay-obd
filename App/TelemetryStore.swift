@@ -541,6 +541,7 @@ final class TelemetryStore {
             coolantC: coolantC,
             intakeAirC: intakeAirC,
             powerCh: powerCh,
+            peakPowerCh: displayedPeakPowerCh,
             connected: isRunningState,
             statusText: status
         )
