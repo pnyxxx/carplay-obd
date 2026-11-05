@@ -522,6 +522,15 @@ final class TelemetryStore {
         }
     }
 
+    /// Recrée la Live Activity (budget iOS neuf) ; la crée si elle n'existe pas.
+    func refreshLiveActivity() {
+        if liveActivityActive {
+            liveActivity.rotateNow(with: currentActivityState())
+        } else {
+            startLiveActivity()
+        }
+    }
+
     func stopLiveActivity() {
         liveActivity.stop()
         liveActivityActive = false

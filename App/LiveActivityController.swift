@@ -133,9 +133,16 @@ final class LiveActivityController {
     /// Crée une Live Activity neuve puis ferme l'ancienne, seulement si iOS accepte la nouvelle
     /// (iOS peut refuser quand l'app est en arrière-plan : l'ancienne continue alors, rien ne disparaît).
     private func rotateIfNeeded(with state: TelemetryAttributes.ContentState) {
-        guard let rotationInterval, let current = activity,
+        guard let rotationInterval, activity != nil,
               Date().timeIntervalSince(activityStart) >= rotationInterval,
               Date() >= nextRotationAttempt else { return }
+        rotateNow(with: state)
+    }
+
+    /// Relance immédiate (raccourci « Relancer l'affichage CarPlay ») : budget iOS neuf.
+    @discardableResult
+    func rotateNow(with state: TelemetryAttributes.ContentState) -> Bool {
+        guard let current = activity else { return false }
         do {
             let content = ActivityContent(state: state, staleDate: Date().addingTimeInterval(max(20, heartbeat * 4)))
             let fresh = try Activity.request(attributes: current.attributes, content: content, pushType: nil)
@@ -146,9 +153,11 @@ final class LiveActivityController {
             sentTimes.append(lastSent)
             Task { await current.end(nil, dismissalPolicy: .immediate) }
             onEvent?("Live Activity relancée (budget iOS neuf)")
+            return true
         } catch {
             nextRotationAttempt = Date().addingTimeInterval(30)
             onEvent?("Relance de la Live Activity refusée par iOS : \(error.localizedDescription)")
+            return false
         }
     }
 

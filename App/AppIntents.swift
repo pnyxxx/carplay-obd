@@ -33,6 +33,18 @@ struct StopTelemetryIntent: LiveActivityIntent {
     }
 }
 
+/// « Relancer l'affichage CarPlay » : recrée seulement la Live Activity, sans toucher à la connexion.
+/// Instantané (pas d'attente) : utilisable dans un raccourci en boucle ou par Siri sans délai dépassé.
+struct RefreshCarPlayIntent: LiveActivityIntent {
+    static let title: LocalizedStringResource = "Relancer l'affichage CarPlay"
+
+    @MainActor
+    func perform() async throws -> some IntentResult {
+        TelemetryStore.shared.refreshLiveActivity()
+        return .result()
+    }
+}
+
 struct TrackGaugeShortcuts: AppShortcutsProvider {
     static var appShortcuts: [AppShortcut] {
         AppShortcut(
@@ -40,6 +52,12 @@ struct TrackGaugeShortcuts: AppShortcutsProvider {
             phrases: ["Démarrer \(.applicationName)", "Lancer la télémétrie \(.applicationName)"],
             shortTitle: "Démarrer",
             systemImageName: "gauge.with.dots.needle.67percent"
+        )
+        AppShortcut(
+            intent: RefreshCarPlayIntent(),
+            phrases: ["Relance \(.applicationName)", "Relancer l'affichage \(.applicationName)"],
+            shortTitle: "Relancer CarPlay",
+            systemImageName: "arrow.clockwise"
         )
         AppShortcut(
             intent: StopTelemetryIntent(),
